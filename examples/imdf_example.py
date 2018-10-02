@@ -1,18 +1,19 @@
+import os,sys,inspect
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0,parentdir)
 import os, sys, inspect
-
+import pm4py
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 # from pm4py.algo.inductive.versions import dfg_only
-from pm4py.algo.inductive import factory as inductive_factory
-from pm4py.log.importer.xes import factory as xes_importer
-from pm4py.models.petri import visualize as pn_viz
-import pm4py.algo.alignments as align
-from pm4py.algo.tokenreplay.versions import token_replay
+from pm4py.algo.discovery.inductive import factory as inductive_factory
+from pm4py.entities.log.importer.xes import factory as xes_importer
+from pm4py.visualization.petrinet.common import visualize as pn_viz
 import traceback
-from pm4py.models.petri.exporter import pnml as petri_exporter
 
-if __name__ == "__main__":
+def execute_script():
     logPath = os.path.join("..","tests","inputData","running-example.xes")
 
     log = xes_importer.import_log(logPath)
@@ -32,7 +33,7 @@ if __name__ == "__main__":
         while i < len(log):
             try:
                 print("\n", i, [x["concept:name"] for x in log[i]])
-                cfResult = align.versions.state_equation_a_star.apply(log[i], net, marking, final_marking)['alignment']
+                cfResult = pm4py.algo.conformance.alignments.versions.state_equation_a_star.apply(log[i], net, marking, final_marking)['alignment']
                 if cfResult is None:
                     print("alignment is none!")
                 else:
@@ -51,3 +52,6 @@ if __name__ == "__main__":
             i = i + 1
         print(fitTraces)
         print(len(fitTraces))
+
+if __name__ == "__main__":
+    execute_script()

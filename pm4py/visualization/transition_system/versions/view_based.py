@@ -1,5 +1,4 @@
-from pm4py.algo.transition_system.versions import view_based
-from pm4py.models.transition_system import visualize as ts_viz
+import pm4py
 
 def apply(tsys, parameters=None):
     """
@@ -18,5 +17,5 @@ def apply(tsys, parameters=None):
         Graph visualization
     """
 
-    gviz = ts_viz.graphviz.visualize(tsys, parameters=parameters)
+    gviz = pm4py.visualization.transition_system.util.visualize_graphviz.visualize(tsys, parameters=parameters)
     return gviz

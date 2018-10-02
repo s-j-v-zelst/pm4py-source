@@ -1,19 +1,19 @@
-from pm4py.filtering.tracelog.util import filtering_constants
+from pm4py.algo.filtering.common import filtering_constants
 from pm4py.util import constants
-from pm4py.log.util import xes as xes_util
-from pm4py.log.util import insert_classifier
+from pm4py.entities.log.util import xes as xes_util
+from pm4py.entities.log.util import insert_classifier
 from pm4py import util as pmutil
-from pm4py.filtering.tracelog.auto_filter import auto_filter
+from pm4py.algo.filtering.tracelog.auto_filter import auto_filter
 from copy import copy
-from pm4py.filtering.tracelog.attributes import attributes_filter as activities_module
-from pm4py.algo.dfg import factory as dfg_factory, replacement as dfg_replacement
+from pm4py.algo.filtering.tracelog.attributes import attributes_filter as activities_module
+from pm4py.algo.discovery.dfg import replacement as dfg_replacement, factory as dfg_factory
 from pm4py.visualization.dfg import factory as dfg_vis_factory
-from pm4py.algo.alpha import factory as alpha_factory
-from pm4py.algo.inductive import factory as inductive_factory
+from pm4py.algo.discovery.alpha import factory as alpha_factory
+from pm4py.algo.discovery.inductive import factory as inductive_factory
 from pm4py.visualization.petrinet import factory as pn_vis_factory
-from pm4py.algo.transition_system import factory as ts_factory
+from pm4py.algo.discovery.transition_system import factory as ts_factory
 from pm4py.visualization.transition_system import factory as ts_vis_factory
-from pm4py.algo.transition_system.parameters import *
+from pm4py.algo.discovery.transition_system.parameters import *
 
 def apply(original_log, parameters=None):
     """
@@ -72,14 +72,14 @@ def apply(original_log, parameters=None):
         gviz = ts_vis_factory.apply(ts_from_log, variant=replayMeasure, parameters=parameters_viz)
     elif discoveryAlgorithm == "dfg":
         # gets the number of occurrences of the single attributes in the filtered log
-        filtered_log_activities_count = activities_module.get_activities_from_log(log, parameters=parameters_autofilter)
+        filtered_log_activities_count = activities_module.get_attributes_from_log(log, activity_key, parameters=parameters_autofilter)
         # gets an intermediate log that is the original log restricted to the list
         # of attributes that appears in the filtered log
         intermediate_log = activities_module.filter_log_by_specified_attributes(original_log,
                                                                                 filtered_log_activities_count,
                                                                                 attribute_key=activity_key)
         # gets the number of occurrences of the single attributes in the intermediate log
-        activities_count = activities_module.get_activities_from_log(intermediate_log, parameters=parameters_autofilter)
+        activities_count = activities_module.get_attributes_from_log(intermediate_log, activity_key, parameters=parameters_autofilter)
         # calculate DFG of the filtered log and of the intermediate log
         dfg_filtered_log = dfg_factory.apply(log, parameters=parameters_discovery, variant=replayMeasure)
         dfg_intermediate_log = dfg_factory.apply(intermediate_log, parameters=parameters_discovery,
