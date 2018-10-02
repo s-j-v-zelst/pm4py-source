@@ -9,7 +9,10 @@ from pm4py.entities.petri.petrinet import PetriNet
 from collections import Counter
 from pm4py import util as pmutil
 from pm4py.entities.log.util import xes as xes_util
-from pm4py.algo.discovery.dfg.utils.dfg_utils import get_ingoing_edges, get_outgoing_edges
+from pm4py.algo.discovery.dfg.utils.dfg_utils import get_ingoing_edges, get_outgoing_edges, get_activities_from_dfg
+from pm4py.algo.filtering.dfg.dfg_filtering import clean_dfg_based_on_noise_thresh
+from pm4py.algo.conformance.tokenreplay import factory as token_replay
+from pm4py.algo.repair.petri_reduction import factory as reduction
 
 sys.setrecursionlimit(100000)
 
@@ -38,10 +41,63 @@ def apply(trace_log, parameters):
     if not pmutil.constants.PARAMETER_CONSTANT_ACTIVITY_KEY in parameters:
         parameters[pmutil.constants.PARAMETER_CONSTANT_ACTIVITY_KEY] = xes_util.DEFAULT_NAME_KEY
     activity_key = parameters[pmutil.constants.PARAMETER_CONSTANT_ACTIVITY_KEY]
-    indMinDirFollows = InductMinDirFollows()
-    return indMinDirFollows.apply(trace_log, parameters, activity_key=activity_key)
+    # apply the reduction by default only on very small logs
+    enable_reduction = parameters["enable_reduction"] if "enable_reduction" in parameters else len(trace_log) < 30
 
-def apply_dfg(trace_log, parameters):
+    indMinDirFollows = InductMinDirFollows()
+    net, initial_marking, final_marking = indMinDirFollows.apply(trace_log, parameters, activity_key=activity_key)
+
+    # clean net from duplicate hidden transitions
+    net = clean_duplicate_transitions(net)
+
+    if enable_reduction:
+        # do the replay
+        aligned_traces = token_replay.apply(trace_log, net, initial_marking, final_marking, parameters=parameters)
+
+        # apply petri_reduction technique in order to simplify the Petri net
+        net = reduction.apply(net, parameters={"aligned_traces": aligned_traces})
+
+    return net, initial_marking, final_marking
+
+def clean_duplicate_transitions(net):
+    """
+    Clean duplicate transitions in a Petri net
+
+    Parameters
+    ------------
+    net
+        Petri net
+
+    Returns
+    ------------
+    net
+        Cleaned Petri net
+    """
+    transitions = list(net.transitions)
+    alreadyVisitedCombo = set()
+    # while cycle because we have to delete some of them
+    i = 0
+    while i < len(transitions):
+        trans = transitions[i]
+        if trans.label is None:
+            in_arcs = trans.in_arcs
+            out_arcs = trans.out_arcs
+            to_delete = False
+            for in_arc in in_arcs:
+                in_place = in_arc.source
+                for out_arc in out_arcs:
+                    out_place = out_arc.target
+                    combo = in_place.name + " " + out_place.name
+                    if combo in alreadyVisitedCombo:
+                        to_delete = True
+                        break
+                    alreadyVisitedCombo.add(combo)
+            if to_delete:
+                net = petri.utils.remove_transition(net, trans)
+        i = i + 1
+    return net
+
+def apply_dfg(dfg, parameters):
     """
     Apply the IMDF algorithm to a DFG graph
 
@@ -67,7 +123,12 @@ def apply_dfg(trace_log, parameters):
         parameters[pmutil.constants.PARAMETER_CONSTANT_ACTIVITY_KEY] = xes_util.DEFAULT_NAME_KEY
     activity_key = parameters[pmutil.constants.PARAMETER_CONSTANT_ACTIVITY_KEY]
     indMinDirFollows = InductMinDirFollows()
-    return indMinDirFollows.apply_dfg(trace_log, parameters, activity_key=activity_key)
+    net, initial_marking, final_marking = indMinDirFollows.apply_dfg(dfg, parameters, activity_key=activity_key)
+
+    # clean net from duplicate hidden transitions
+    net = clean_duplicate_transitions(net)
+
+    return net, initial_marking, final_marking
 
 class Counts(object):
     """
@@ -127,59 +188,6 @@ class Subtree(object):
 
         self.initialize_tree(dfg, initialDfg, activities)
 
-    def get_max_activity_count(self, act):
-        """
-        Get maximum count of an ingoing/outgoing edge related to an activity
-
-        Parameters
-        ------------
-        act
-            Activity
-
-        Returns
-        ------------
-        max_value
-            Maximum count of ingoing/outgoing edges to attributes
-        """
-        max_value = -1
-        if act in self.ingoing:
-            for act2 in self.ingoing[act]:
-                if self.ingoing[act][act2] > max_value:
-                    max_value = self.ingoing[act][act2]
-        if act in self.outgoing:
-            for act2 in self.outgoing[act]:
-                if self.outgoing[act][act2] > max_value:
-                    max_value = self.outgoing[act][act2]
-        return max_value
-
-    def clean_dfg_based_on_noise_thresh(self):
-        """
-        Clean Directly-Follows graph based on noise threshold
-        when a fallback (flower) is chosen
-
-        Returns
-        ----------
-        newDfg
-            Cleaned dfg based on noise threshold
-        """
-        newDfg = []
-        activ_max_count = {}
-        for act in self.activities:
-            activ_max_count[act] = self.get_max_activity_count(act)
-
-        for el in self.dfg:
-            act1 = el[0][0]
-            act2 = el[0][1]
-            val = el[1]
-
-            if val < max(activ_max_count[act1] * self.noiseThreshold, activ_max_count[act2] * self.noiseThreshold):
-                #print(self.recDepth,"deleting",el)
-                pass
-            else:
-                newDfg.append(el)
-
-        return newDfg
-
     def initialize_tree(self, dfg, initialDfg, activities, secondIteration=False):
         """
         Initialize the tree
@@ -197,14 +205,16 @@ class Subtree(object):
 
         self.secondIteration = secondIteration
 
-        if secondIteration:
-            self.dfg = self.clean_dfg_based_on_noise_thresh()
-        else:
-            self.dfg = copy(dfg)
         if activities is None:
-            self.activities = self.get_activities_from_dfg(self.dfg)
+            self.activities = get_activities_from_dfg(dfg)
         else:
             self.activities = copy(activities)
+
+        if secondIteration:
+            self.dfg = clean_dfg_based_on_noise_thresh(self.dfg, self.activities, self.noiseThreshold)
+        else:
+            self.dfg = copy(dfg)
+
         self.outgoing = get_outgoing_edges(self.dfg)
         self.ingoing = get_ingoing_edges(self.dfg)
         self.selfLoopActivities = self.get_activities_self_loop()
@@ -213,7 +223,7 @@ class Subtree(object):
         self.activitiesDirection = self.get_activities_direction()
         self.activitiesDirlist = self.get_activities_dirlist()
         self.negatedDfg = self.negate()
-        self.negatedActivities = self.get_activities_from_dfg(self.negatedDfg)
+        self.negatedActivities = get_activities_from_dfg(self.negatedDfg)
         self.negatedOutgoing = get_outgoing_edges(self.negatedDfg)
         self.negatedIngoing = get_ingoing_edges(self.negatedDfg)
         self.detectedCut = None
@@ -232,21 +242,9 @@ class Subtree(object):
             if not(el[0][1] in self.outgoing and el[0][0] in self.outgoing[el[0][1]]):
                 negatedDfg.append(el)
 
-        activitiesThatAreNotNegatedDfg = set(set(self.activities)).difference(self.get_activities_from_dfg(negatedDfg))
+        activitiesThatAreNotNegatedDfg = set(set(self.activities)).difference(get_activities_from_dfg(negatedDfg))
 
         return negatedDfg
-
-    def get_activities_from_dfg(self, dfg):
-        """
-        Get the list of attributes directly from DFG graph
-        """
-        set_activities = set()
-        for el in dfg:
-            set_activities.add(el[0][0])
-            set_activities.add(el[0][1])
-        list_activities = sorted(list(set_activities))
-
-        return list_activities
 
     def get_activities_self_loop(self):
         """
@@ -473,6 +471,7 @@ class Subtree(object):
         LOOP_CONST_1 = 0.2
         LOOP_CONST_2 = 0.02
         LOOP_CONST_3 = -0.2
+        LOOP_CONST_4 = -0.7
 
         if len(self.activitiesDirlist) > 1:
             set1 = set()
@@ -484,6 +483,9 @@ class Subtree(object):
                     for act in activInput:
                         if not act == self.activitiesDirlist[0][0] and self.activitiesDirection[act] < LOOP_CONST_2:
                             set2.add(act)
+
+            if self.activitiesDirlist[-1][1] < LOOP_CONST_4:
+                set2.add(self.activitiesDirlist[-1][0])
 
             if len(set2) > 0:
                 for act in self.activities:
@@ -1062,48 +1064,6 @@ class InductMinDirFollows(object):
         dfg = [(k, v) for k, v in dfg_inst.apply(trace_log, parameters={pmutil.constants.PARAMETER_CONSTANT_ACTIVITY_KEY: activity_key}).items() if v > 0]
         return self.apply_dfg(dfg, parameters)
 
-    def clean_duplicate_transitions(self, net):
-        """
-        Clean duplicate transitions in a Petri net
-
-        Parameters
-        ------------
-        net
-            Petri net
-
-        Returns
-        ------------
-        net
-            Cleaned Petri net
-        """
-        transitions = list(net.transitions)
-        alreadyVisitedCombo = set()
-        # while cycle because we have to delete some of them
-        i = 0
-        while i < len(transitions):
-            trans = transitions[i]
-            if trans.label is None:
-                in_arcs = trans.in_arcs
-                out_arcs = trans.out_arcs
-                to_delete = False
-                for in_arc in in_arcs:
-                    in_place = in_arc.source
-                    for out_arc in out_arcs:
-                        out_place = out_arc.target
-                        combo = in_place.name + " " + out_place.name
-                        if combo in alreadyVisitedCombo:
-                            to_delete = True
-                            break
-                        alreadyVisitedCombo.add(combo)
-                if to_delete:
-                    for arc in in_arcs:
-                        net.arcs.remove(arc)
-                    for arc in out_arcs:
-                        net.arcs.remove(arc)
-                    net.transitions.remove(trans)
-            i = i + 1
-        return net
-
     def apply_dfg(self, dfg, parameters, activity_key="concept:name"):
         """
         Apply the IMDF algorithm to a DFG graph
@@ -1146,8 +1106,5 @@ class InductMinDirFollows(object):
         initial_marking = Marking()
         final_marking = Marking()
         net, initial_marking, final_marking, lastAddedPlace = s.form_petrinet(net, initial_marking, final_marking)
-
-        # clean net from duplicate hidden transitions
-        net = self.clean_duplicate_transitions(net)
 
         return net, initial_marking, final_marking

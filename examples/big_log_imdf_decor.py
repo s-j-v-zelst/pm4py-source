@@ -29,7 +29,7 @@ def execute_script():
     # we find the DFG
     dfg = dfg_factory.apply(log, variant=variant)
     # we find the number of activities occurrences in the trace log
-    activities_count = attributes_filter.get_attributes_from_log(log, "concept:name")
+    activities_count = attributes_filter.get_attribute_values(log, "concept:name")
     # we calculate the statistics on the Petri net applying the greedy algorithm
     aggregated_statistics = vis_trans_shortest_paths.get_net_decorations_from_dfg_spaths_acticount(net, dfg, spaths,
                                                                                                    activities_count,
@@ -37,9 +37,9 @@ def execute_script():
                                                                                                    aggregationMeasure=aggregationMeasure)
     # we find the gviz
     parameters_viz = {"format":"svg"}
-    gviz = pn_vis_factory.apply(net, initial_marking, final_marking, variant=variant, aggregated_statistics=aggregated_statistics)
+    gviz = pn_vis_factory.apply(net, initial_marking, final_marking, variant=variant, aggregated_statistics=aggregated_statistics, parameters={"format": "svg"})
     # we show the viz on screen
-    gviz.view()
+    pn_vis_factory.view(gviz)
     # we save the vis to file
     #pn_vis_factory.save(gviz, "receipt.pnml")
 

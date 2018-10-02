@@ -14,6 +14,8 @@ from pm4py.visualization.petrinet import factory as pn_vis_factory
 from pm4py.algo.discovery.transition_system import factory as ts_factory
 from pm4py.visualization.transition_system import factory as ts_vis_factory
 from pm4py.algo.discovery.transition_system.parameters import *
+from pm4py.visualization.common.save import *
+from pm4py.visualization.common.gview import *
 
 def apply(original_log, parameters=None):
     """
@@ -39,7 +41,7 @@ def apply(original_log, parameters=None):
     activity_key = parameters[constants.PARAMETER_CONSTANT_ACTIVITY_KEY] if constants.PARAMETER_CONSTANT_ACTIVITY_KEY in parameters else None
     discoveryAlgorithm = parameters["algorithm"] if "algorithm" in parameters else "inductive"
     replayMeasure = parameters["decoration"] if "decoration" in parameters else "frequency"
-    imageFormat = parameters["format"] if "format" in parameters else "pdf"
+    imageFormat = parameters["format"] if "format" in parameters else "png"
     decreasingFactor = parameters["simplicity"] if "simplicity" in parameters else filtering_constants.DECREASING_FACTOR
     replayEnabled = parameters["replayEnabled"] if "replayEnabled" in parameters else True
     if "frequency" in replayMeasure:
@@ -57,6 +59,7 @@ def apply(original_log, parameters=None):
     parameters_viz = {"format": imageFormat, pmutil.constants.PARAMETER_CONSTANT_ACTIVITY_KEY: activity_key, "aggregationMeasure": aggregationMeasure}
     # apply automatically a filter
     parameters_autofilter = {constants.PARAMETER_CONSTANT_ACTIVITY_KEY: activity_key,
+                             constants.PARAMETER_CONSTANT_ATTRIBUTE_KEY: activity_key,
                              "decreasingFactor": decreasingFactor}
 
     log = auto_filter.apply_auto_filter(copy(original_log), parameters=parameters_autofilter)
@@ -72,14 +75,14 @@ def apply(original_log, parameters=None):
         gviz = ts_vis_factory.apply(ts_from_log, variant=replayMeasure, parameters=parameters_viz)
     elif discoveryAlgorithm == "dfg":
         # gets the number of occurrences of the single attributes in the filtered log
-        filtered_log_activities_count = activities_module.get_attributes_from_log(log, activity_key, parameters=parameters_autofilter)
+        filtered_log_activities_count = activities_module.get_attribute_values(log, activity_key, parameters=parameters_autofilter)
         # gets an intermediate log that is the original log restricted to the list
         # of attributes that appears in the filtered log
-        intermediate_log = activities_module.filter_log_by_specified_attributes(original_log,
-                                                                                filtered_log_activities_count,
-                                                                                attribute_key=activity_key)
+        intermediate_log = activities_module.apply_events(original_log,
+                                                          filtered_log_activities_count,
+                                                          parameters=parameters_autofilter)
         # gets the number of occurrences of the single attributes in the intermediate log
-        activities_count = activities_module.get_attributes_from_log(intermediate_log, activity_key, parameters=parameters_autofilter)
+        activities_count = activities_module.get_attribute_values(intermediate_log, activity_key, parameters=parameters_autofilter)
         # calculate DFG of the filtered log and of the intermediate log
         dfg_filtered_log = dfg_factory.apply(log, parameters=parameters_discovery, variant=replayMeasure)
         dfg_intermediate_log = dfg_factory.apply(intermediate_log, parameters=parameters_discovery,

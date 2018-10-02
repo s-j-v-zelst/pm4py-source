@@ -25,7 +25,6 @@ def is_enabled(t, pn, m):
                 return False
     return True
 
-
 def execute(t, pn, m):
     '''
     Executes a given transition in a given Petri net and Marking

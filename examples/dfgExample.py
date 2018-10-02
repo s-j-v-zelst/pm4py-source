@@ -15,14 +15,14 @@ def execute_script():
     logPath = os.path.join("..","tests","inputData","running-example.xes")
     log = xes_importer.import_log(logPath)
     filtered_log = auto_filter.apply_auto_filter(log)
-    filtered_log_activities_count = attributes_filter.get_attributes_from_log(filtered_log, "concept:name")
-    intermediate_log = attributes_filter.filter_log_by_specified_attributes(log, list(filtered_log_activities_count.keys()))
+    filtered_log_activities_count = attributes_filter.get_attribute_values(filtered_log, "concept:name")
+    intermediate_log = attributes_filter.apply_events(log, list(filtered_log_activities_count.keys()))
     dfg_filtered_log = dfg_factory.apply(filtered_log)
     dfg_intermediate_log = dfg_factory.apply(intermediate_log)
     dfg_filtered_log = dfg_replacement.replace_values(dfg_filtered_log, dfg_intermediate_log)
 
-    gviz = dfg_vis_factory.apply(dfg_filtered_log, log=intermediate_log)
-    gviz.view()
+    gviz = dfg_vis_factory.apply(dfg_filtered_log, log=intermediate_log, parameters={"format": "svg"})
+    dfg_vis_factory.view(gviz)
     #base64 = dfg_visualize.return_diagram_as_base64(activities_count, dfg_filtered_log, measure=measure)
     #print(base64)
 

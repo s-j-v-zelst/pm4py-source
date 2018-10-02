@@ -3,9 +3,96 @@ from pm4py.algo.filtering.tracelog.variants import variants_filter
 from pm4py.util import constants
 from pm4py.entities.log.util import xes
 from pm4py.algo.filtering.common import filtering_constants
+from pm4py.algo.filtering.common.attributes import attributes_common
 
+def apply_events(trace_log, values, parameters=None):
+    """
+    Filter log by keeping only events with an attribute value that belongs to the provided values list
 
-def get_attributes_from_log(trace_log, attribute_key, parameters=None):
+    Parameters
+    -----------
+    trace_log
+        Trace log
+    values
+        Allowed attributes
+    parameters
+        Parameters of the algorithm, including:
+            activity_key -> Attribute identifying the activity in the log
+            positive -> Indicate if events should be kept/removed
+
+    Returns
+    -----------
+    filtered_log
+        Filtered log
+    """
+    if parameters is None:
+        parameters = {}
+
+    attribute_key = parameters[constants.PARAMETER_CONSTANT_ATTRIBUTE_KEY] if constants.PARAMETER_CONSTANT_ATTRIBUTE_KEY in parameters else xes.DEFAULT_NAME_KEY
+    positive = parameters["positive"] if "positive" in parameters else True
+
+    filtered_log = TraceLog()
+    for trace in trace_log:
+        new_trace = Trace()
+
+        j = 0
+        while j < len(trace):
+            if attribute_key in trace[j]:
+                attribute_value = trace[j][attribute_key]
+                if (positive and attribute_value in values) or (not(positive) and not(attribute_value in values)):
+                    new_trace.append(trace[j])
+            j = j + 1
+        if len(new_trace) > 0:
+            filtered_log.append(new_trace)
+    return filtered_log
+
+def apply(trace_log, values, parameters=None):
+    """
+    Filter log by keeping only traces that has/has not events with an attribute value that belongs to the provided values list
+
+    Parameters
+    -----------
+    trace_log
+        Trace log
+    values
+        Allowed attributes
+    parameters
+        Parameters of the algorithm, including:
+            activity_key -> Attribute identifying the activity in the log
+            positive -> Indicate if events should be kept/removed
+
+    Returns
+    -----------
+    filtered_log
+        Filtered log
+    """
+    if parameters is None:
+        parameters = {}
+
+    attribute_key = parameters[constants.PARAMETER_CONSTANT_ATTRIBUTE_KEY] if constants.PARAMETER_CONSTANT_ATTRIBUTE_KEY in parameters else xes.DEFAULT_NAME_KEY
+    positive = parameters["positive"] if "positive" in parameters else True
+
+    filtered_log = TraceLog()
+    for trace in trace_log:
+        new_trace = Trace()
+
+        found = False
+        j = 0
+        while j < len(trace):
+            if attribute_key in trace[j]:
+                attribute_value = trace[j][attribute_key]
+                if attribute_value in values:
+                    found = True
+            j = j + 1
+
+        if (found and positive) or (not(found) and not(positive)):
+            new_trace = trace
+
+        if len(new_trace) > 0:
+            filtered_log.append(new_trace)
+    return filtered_log
+
+def get_attribute_values(trace_log, attribute_key, parameters=None):
     """
     Get the attribute values of the log for the specified attribute along with their count
 
@@ -26,8 +113,6 @@ def get_attributes_from_log(trace_log, attribute_key, parameters=None):
     if parameters is None:
         parameters = {}
 
-    attribute_key = parameters[constants.PARAMETER_CONSTANT_ACTIVITY_KEY] if constants.PARAMETER_CONSTANT_ACTIVITY_KEY in parameters else xes.DEFAULT_NAME_KEY
-
     attributes = {}
 
     for trace in trace_log:
@@ -39,56 +124,6 @@ def get_attributes_from_log(trace_log, attribute_key, parameters=None):
                 attributes[attribute] = attributes[attribute] + 1
 
     return attributes
-
-
-def get_sorted_attributes_list(attributes):
-    """
-    Gets sorted attributes list
-
-    Parameters
-    ----------
-    attributes
-        Dictionary of attributes associated with their count
-
-    Returns
-    ----------
-    listact
-        Sorted end attributes list
-    """
-    listattr = []
-    for a in attributes:
-        listattr.append([a, attributes[a]])
-    listattr = sorted(listattr, key=lambda x: x[1], reverse=True)
-    return listattr
-
-
-def get_attributes_threshold(attributes, alist, decreasingFactor, maxActivityCount = 25):
-    """
-    Get attributes cutting threshold
-
-    Parameters
-    ----------
-    attributes
-        Dictionary of attributes associated with their count
-    alist
-        Sorted attributes list
-
-    Returns
-    ---------
-    threshold
-        Activities cutting threshold
-    """
-
-    threshold = alist[0][1]
-    i = 1
-    while i < len(alist):
-        value = alist[i][1]
-        if value > threshold * decreasingFactor:
-            threshold = value
-        if i >= maxActivityCount:
-            break
-        i = i + 1
-    return threshold
 
 def filter_log_by_attributes_threshold(trace_log, attributes, variants, vc, threshold, attribute_key="concept:name"):
     """
@@ -130,38 +165,6 @@ def filter_log_by_attributes_threshold(trace_log, attributes, variants, vc, thre
             filtered_log.append(new_trace)
     return filtered_log
 
-def filter_log_by_specified_attributes(trace_log, attributes_list, attribute_key="concept:name"):
-    """
-    Filter log by keeping only attributes that belongs to the activity list
-
-    Parameters
-    -----------
-    trace_log
-        Trace log
-    attributes_list
-        Allowed attributes
-    attribute_key
-        Activiy key (must be specified if different from concept:name)
-
-    Returns
-    -----------
-    filtered_log
-        Filtered log
-    """
-    filtered_log = TraceLog()
-    for trace in trace_log:
-        new_trace = Trace()
-        j = 0
-        while j < len(trace):
-            if attribute_key in trace[j]:
-                attribute_value = trace[j][attribute_key]
-                if attribute_value in attributes_list:
-                    new_trace.append(trace[j])
-            j = j + 1
-        if len(new_trace) > 0:
-            filtered_log.append(new_trace)
-    return filtered_log
-
 def apply_auto_filter(trace_log, variants=None, parameters=None):
     """
     Apply an attributes filter detecting automatically a percentage
@@ -191,8 +194,8 @@ def apply_auto_filter(trace_log, variants=None, parameters=None):
     if variants is None:
         variants = variants_filter.get_variants(trace_log, parameters=parameters_variants)
     vc = variants_filter.get_variants_sorted_by_count(variants)
-    activities = get_attributes_from_log(trace_log, attribute_key, parameters=parameters_variants)
-    alist = get_sorted_attributes_list(activities)
-    thresh = get_attributes_threshold(activities, alist, decreasingFactor)
+    activities = get_attribute_values(trace_log, attribute_key, parameters=parameters_variants)
+    alist = attributes_common.get_sorted_attributes_list(activities)
+    thresh = attributes_common.get_attributes_threshold(activities, alist, decreasingFactor)
     filtered_log = filter_log_by_attributes_threshold(trace_log, activities, variants, vc, thresh, attribute_key)
     return filtered_log

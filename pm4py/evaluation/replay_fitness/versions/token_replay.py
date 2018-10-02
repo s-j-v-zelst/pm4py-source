@@ -7,7 +7,7 @@ PARAM_ACTIVITY_KEY = xes_util.DEFAULT_NAME_KEY
 
 PARAMETERS = [PARAM_ACTIVITY_KEY]
 
-def get_fitness(aligned_traces):
+def evaluate(aligned_traces, parameters=None):
     """
     Gets a dictionary expressing fitness in a synthetic way from the list of boolean values
     saying if a trace in the log is fit, and the float values of fitness associated to each trace
@@ -16,6 +16,8 @@ def get_fitness(aligned_traces):
     ------------
     aligned_traces
         Result of the token-based replayer
+    parameters
+        Possible parameters of the evaluation
 
     Returns
     -----------
@@ -59,9 +61,9 @@ def apply(log, petri_net, initial_marking, final_marking, parameters=None):
         parameters = {}
     activity_key = parameters[PARAM_ACTIVITY_KEY] if PARAM_ACTIVITY_KEY in parameters else log_lib.util.xes.DEFAULT_NAME_KEY
 
-    parameters_TR = {pmutil.constants.PARAMETER_CONSTANT_ACTIVITY_KEY: activity_key}
+    parameters_TR = {pmutil.constants.PARAMETER_CONSTANT_ACTIVITY_KEY: activity_key, "consider_remaining_in_fitness": True}
 
     aligned_traces = token_replay.apply(log, petri_net, initial_marking, final_marking, parameters=parameters_TR)
 
-    return get_fitness(aligned_traces)
+    return evaluate(aligned_traces)
 

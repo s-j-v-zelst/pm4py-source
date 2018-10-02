@@ -1,25 +1,8 @@
-from datetime import datetime
 from pm4py.entities.log.log import TraceLog, EventLog
 from pm4py.entities.log import transform
 from pm4py.entities.log.util import xes
 from pm4py.util import constants
-
-def get_dt_from_string(dt):
-    """
-    If the date is expressed as string, do the conversion to a datetime.datetime object
-
-    Parameters
-    -----------
-    dt
-        Date (string or datetime.datetime)
-
-    Returns
-    -----------
-    dt
-        Datetime object
-    """
-    if type(dt) is str:
-        return datetime.strptime(dt, "%Y-%m-%d %H:%M:%S")
+from pm4py.algo.filtering.common.timestamp.timestamp_common import get_dt_from_string
 
 def is_contained(trace, dt1, dt2, timestamp_key):
     """
@@ -58,8 +41,9 @@ def filter_traces_contained(log, dt1, dt2, parameters=None):
         Lower bound to the interval
     dt2
         Upper bound to the interval
-    timestamp_key
-        Timestamp attribute
+    parameters
+        Possible parameters of the algorithm, including:
+            timestamp_key -> Attribute to use as timestamp
 
     Returns
     ------------
@@ -116,8 +100,9 @@ def filter_traces_intersecting(log, dt1, dt2, parameters=None):
         Lower bound to the interval
     dt2
         Upper bound to the interval
-    timestamp_key
-        Timestamp attribute
+    parameters
+        Possible parameters of the algorithm, including:
+            timestamp_key -> Attribute to use as timestamp
 
     Returns
     ------------
@@ -133,7 +118,7 @@ def filter_traces_intersecting(log, dt1, dt2, parameters=None):
     filtered_log = TraceLog([trace for trace in log if is_intersecting(trace, dt1, dt2, timestamp_key)])
     return filtered_log
 
-def filter_events(trace_log, dt1, dt2, parameters=None):
+def apply_events(trace_log, dt1, dt2, parameters=None):
     """
     Get a new trace log containing all the events contained in the given interval
 
@@ -145,8 +130,9 @@ def filter_events(trace_log, dt1, dt2, parameters=None):
         Lower bound to the interval
     dt2
         Upper bound to the interval
-    timestamp_key
-        Timestamp attribute
+    parameters
+        Possible parameters of the algorithm, including:
+            timestamp_key -> Attribute to use as timestamp
 
     Returns
     ------------
@@ -165,3 +151,9 @@ def filter_events(trace_log, dt1, dt2, parameters=None):
     filtered_trace_log = transform.transform_event_log_to_trace_log(filtered_event_log)
 
     return filtered_trace_log
+
+def apply(df, parameters=None):
+    raise Exception("apply method not available for timestamp filter")
+
+def apply_auto_filter(df, parameters=None):
+    raise Exception("apply_auto_filter method not available for timestamp filter")

@@ -123,7 +123,7 @@ def apply_performance(dfg, log=None, activities_count=None, parameters=None):
 
     return apply(dfg, log=log, parameters=parameters, activities_count=activities_count, measure="performance")
 
-def graphviz_visualization(activities_count, dfg, format="pdf", measure="frequency", maxNoOfEdgesInDiagram=75):
+def graphviz_visualization(activities_count, dfg, format="png", measure="frequency", maxNoOfEdgesInDiagram=75):
     """
     Do GraphViz visualization of a DFG graph
 
@@ -206,7 +206,7 @@ def apply(dfg, log=None, parameters=None, activities_count=None, measure="freque
 
     activity_key = parameters[constants.PARAMETER_CONSTANT_ACTIVITY_KEY] if  constants.PARAMETER_CONSTANT_ACTIVITY_KEY in parameters else xes.DEFAULT_NAME_KEY
 
-    format = "pdf"
+    format = "png"
     maxNoOfEdgesInDiagram = 75
 
     if "format" in parameters:
@@ -215,6 +215,6 @@ def apply(dfg, log=None, parameters=None, activities_count=None, measure="freque
         maxNoOfEdgesInDiagram = parameters["maxNoOfEdgesInDiagram"]
 
     if activities_count is None:
-        activities_count = attributes_filter.get_attributes_from_log(log, activity_key, parameters=parameters)
+        activities_count = attributes_filter.get_attribute_values(log, activity_key, parameters=parameters)
 
     return graphviz_visualization(activities_count, dfg, format=format, measure=measure, maxNoOfEdgesInDiagram=maxNoOfEdgesInDiagram)
