@@ -1,5 +1,5 @@
 import pm4py
-
+from pm4py.visualization.transition_system import factory as tsvf
 
 class TransitionSystemBasedNextActivityPredictor:
 
@@ -18,7 +18,8 @@ class TransitionSystemBasedNextActivityPredictor:
 
 
 if __name__ == '__main__':
-    log = pm4py.log.importer.xes.factory.apply('C:/Users/bas/Documents/tue/svn/private/logs/a32_logs/a32f0n05.xes')
+    log = pm4py.log.importer.xes.factory.apply('C:/Users/bas/Documents/tue/svn/private/logs/a12_logs/a12f0n00.xes')
     pred = TransitionSystemBasedNextActivityPredictor(log)
-    viz = pm4py.models.transition_system.
+    viz = tsvf.apply(pred.transition_system)
+    viz.view()
     print(pred.activity_distribution)
