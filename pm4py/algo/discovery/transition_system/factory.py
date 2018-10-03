@@ -4,6 +4,7 @@ VIEW_BASED = "view_based"
 
 VERSIONS = {VIEW_BASED: view_based.apply}
 
+
 def apply(trace_log, parameters=None, variant=VIEW_BASED):
     """
     Find transition system given trace log
@@ -14,9 +15,8 @@ def apply(trace_log, parameters=None, variant=VIEW_BASED):
         Trace log
     parameters
         Possible parameters of the algorithm, including:
-            view
-            window
-            direction
+
+    variant which variant to use
 
     Returns
     ----------

@@ -1,3 +1,7 @@
+
+DECORATION_KEY_FREQUENCY = 'frequency'
+
+
 class TransitionSystem(object):
 
     class State(object):
