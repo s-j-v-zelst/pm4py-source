@@ -40,26 +40,3 @@ class TransitionSystemBasedNextActivityPredictor:
                 sum += val
             return {k: acts[k] / sum for k in acts.keys()} if len(acts) > 0 else self.activity_distribution
         return self.activity_distribution
-
-
-
-
-
-
-
-
-if __name__ == '__main__':
-    log = pm4py.entities.log.importer.xes.factory.apply('C:/Users/zelst/Documents/tue/svn/logs/a12_logs/a12f0n00.xes')
-    prms = dict()
-    prms[PARAM_KEY_TRANSITION_SYSTEM_DISC_PARAMS] = dict(pm4py.algo.discovery.transition_system.parameters.DEFAULT_PARAMETERS)
-    prms[PARAM_KEY_TRANSITION_SYSTEM_DISC_PARAMS][pm4py.algo.discovery.transition_system.parameters.PARAM_KEY_DIRECTION] = pm4py.algo.discovery.transition_system.parameters.DIRECTION_BACKWARD
-    pred = TransitionSystemBasedNextActivityPredictor(log, prms)
-    viz = pm4py.visualization.transition_system.factory.apply(pred.transition_system, parameters={"format":"svg"})
-    viz.view()
-    print(pred.activity_distribution)
-    for trace in log:
-        for i in range(1,len(trace)):
-            prefix = trace[0:i]
-            prefix_pretty = list(map( lambda event : event['concept:name'], prefix))
-            print('prefix', prefix_pretty, 'prediction', pred.predict(prefix))
-            time.sleep(1)
