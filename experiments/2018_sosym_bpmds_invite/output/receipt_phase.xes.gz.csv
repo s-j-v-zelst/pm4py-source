@@ -1,4 +1,4 @@
 run	brier	params
-0	0.008517144743304355	{'param_disc': {'view': 'set', 'window': 5, 'direction': 'backward', 'decoration': {'arc_frequency'}, 'pm4py:param:activity_key': 'concept:name'}, 'pm4py:param:activity_key': 'concept:name'}
-1	0.008192719930838116	{'param_disc': {'view': 'set', 'window': 5, 'direction': 'backward', 'decoration': {'arc_frequency'}, 'pm4py:param:activity_key': 'concept:name'}, 'pm4py:param:activity_key': 'concept:name'}
-2	0.007085289343825487	{'param_disc': {'view': 'set', 'window': 5, 'direction': 'backward', 'decoration': {'arc_frequency'}, 'pm4py:param:activity_key': 'concept:name'}, 'pm4py:param:activity_key': 'concept:name'}
+0	0.007352219666292685	{'param_disc': {'view': 'multiset', 'window': 5, 'direction': 'backward', 'decoration': {'arc_frequency'}, 'pm4py:param:activity_key': 'concept:name'}, 'pm4py:param:activity_key': 'concept:name'}
+1	0.00717564387188365	{'param_disc': {'view': 'multiset', 'window': 5, 'direction': 'backward', 'decoration': {'arc_frequency'}, 'pm4py:param:activity_key': 'concept:name'}, 'pm4py:param:activity_key': 'concept:name'}
+2	0.006911831029815275	{'param_disc': {'view': 'multiset', 'window': 5, 'direction': 'backward', 'decoration': {'arc_frequency'}, 'pm4py:param:activity_key': 'concept:name'}, 'pm4py:param:activity_key': 'concept:name'}

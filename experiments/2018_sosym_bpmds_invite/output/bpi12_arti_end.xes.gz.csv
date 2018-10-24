@@ -1,0 +1,4 @@
+run	brier	params
+0	0.012033418684886157	{'param_disc': {'view': 'sequence', 'window': 5, 'direction': 'backward', 'decoration': {'arc_frequency'}, 'pm4py:param:activity_key': 'concept:name'}, 'pm4py:param:activity_key': 'concept:name'}
+1	0.012080041403848867	{'param_disc': {'view': 'sequence', 'window': 5, 'direction': 'backward', 'decoration': {'arc_frequency'}, 'pm4py:param:activity_key': 'concept:name'}, 'pm4py:param:activity_key': 'concept:name'}
+2	0.012028380334251553	{'param_disc': {'view': 'sequence', 'window': 5, 'direction': 'backward', 'decoration': {'arc_frequency'}, 'pm4py:param:activity_key': 'concept:name'}, 'pm4py:param:activity_key': 'concept:name'}

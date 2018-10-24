@@ -78,10 +78,12 @@ if __name__ == "__main__":
                         for view in pm4py.algo.discovery.transition_system.parameters.VIEWS:
                             print('window', window, 'view', view)
                             prms = dict(prms_default)
-                            prms_disc = prms[
-                                pm4py.algo.prediction.next_activity.transition_system_based.predictor.PARAM_KEY_TRANSITION_SYSTEM_DISC_PARAMS]
+                            prms_disc = dict(prms[
+                                pm4py.algo.prediction.next_activity.transition_system_based.predictor.PARAM_KEY_TRANSITION_SYSTEM_DISC_PARAMS])
                             prms_disc[pm4py.algo.discovery.transition_system.parameters.PARAM_KEY_WINDOW] = window
                             prms_disc[pm4py.algo.discovery.transition_system.parameters.PARAM_KEY_VIEW] = view
+                            prms[
+                                pm4py.algo.prediction.next_activity.transition_system_based.predictor.PARAM_KEY_TRANSITION_SYSTEM_DISC_PARAMS] = prms_disc
                             prm_list.append(prms)
                             predictor = pm4py.algo.prediction.next_activity.transition_system_based.predictor.TransitionSystemBasedNextActivityPredictor(
                                 train_selection, prms)
@@ -91,11 +93,13 @@ if __name__ == "__main__":
                     else:
                         print('window', window)
                         prms = dict(prms_default)
-                        prms_disc = prms[
-                            pm4py.algo.prediction.next_activity.transition_system_based.predictor.PARAM_KEY_TRANSITION_SYSTEM_DISC_PARAMS]
+                        prms_disc = dict(prms[
+                            pm4py.algo.prediction.next_activity.transition_system_based.predictor.PARAM_KEY_TRANSITION_SYSTEM_DISC_PARAMS])
                         prms_disc[pm4py.algo.discovery.transition_system.parameters.PARAM_KEY_WINDOW] = window
                         prms_disc[
                             pm4py.algo.discovery.transition_system.parameters.PARAM_KEY_VIEW] = pm4py.algo.discovery.transition_system.parameters.VIEW_SET
+                        prms[
+                            pm4py.algo.prediction.next_activity.transition_system_based.predictor.PARAM_KEY_TRANSITION_SYSTEM_DISC_PARAMS] = prms_disc
                         prm_list.append(prms)
                         predictor = pm4py.algo.prediction.next_activity.transition_system_based.predictor.TransitionSystemBasedNextActivityPredictor(
                             train_selection, prms)
@@ -103,6 +107,7 @@ if __name__ == "__main__":
                         print(prm_list)
                         print(briers_list)
 
+                print(log_file, min(briers_list), briers_list.index(min(briers_list)))
                 best_prms = prm_list[briers_list.index(min(briers_list))]
                 print(log_file, best_prms)
                 predictor = pm4py.algo.prediction.next_activity.transition_system_based.predictor.TransitionSystemBasedNextActivityPredictor(
