@@ -52,7 +52,8 @@ def get_model_based_moves_explaining_x_labels(alignment, start, x):
         if move[0] == '>>':
             fragment.append(copy.deepcopy(move))
         else:
-            fragment.append(('>>', copy.deepcopy(move[1])))
+            if move[1] != '>>':
+                fragment.append(('>>', copy.deepcopy(move[1])))
             k += 1
         i += 1
     return fragment
