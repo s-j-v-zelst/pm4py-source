@@ -26,7 +26,7 @@ def align(trace, net, im, fm, model_cost_function, sync_cost_function):
 
 
 def costs(alignment):
-    return sum(map(lambda m: 0 if m[0] != '>>' and (m[1] != '>>' or m[1] is None) else 1, alignment))
+    return sum(map(lambda m: 0 if ((m[0] != '>>' and m[1] != '>>') or (m[0] == '>>' and m[1] is None)) else 1, alignment))
 
 def generate_exact_matching(matches):
     res = list()
