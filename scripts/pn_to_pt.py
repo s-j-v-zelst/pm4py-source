@@ -133,7 +133,7 @@ def transform_pn_to_pt(net):
     stop = False
     while not stop:
         stop = True
-        # petri_viz.view(petri_viz.apply(net, parameters={"format": "svg", "debug": True}))
+        petri_viz.view(petri_viz.apply(net, parameters={"format": "svg", "debug": True}))
         stop = elementary_loop_detection(net) is None
         if not stop:
             continue
@@ -154,8 +154,8 @@ def transform_pn_to_pt(net):
 
 
 if __name__ == "__main__":
-    pnml_path = os.path.join('..', "tests", "input_data", "running-example.pnml")
-    # pnml_path = 'C:/Users/bas/Documents/tue/svn/private/logs/a12_logs/reference.apnml'
+    # pnml_path = os.path.join('..', "tests", "input_data", "running-example.pnml")
+    pnml_path = 'C:/Users/bas/Documents/tue/svn/private/logs/a12_logs/reference.apnml'
     # pnml_path = 'C:/Users/bas/Documents/tue/svn/private/logs/a22_logs/a22f0n00_ref.apnml'
     # pnml_path = 'C:/Users/bas/Documents/tue/svn/private/logs/a32_logs/a32f0n00_reference.apnml'
     # pnml_path = 'C:/Users/bas/Documents/tue/svn/private/logs/a42_logs/a42f00n00_ref.apnml'
