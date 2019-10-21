@@ -6,6 +6,7 @@ from pm4py.objects.process_tree import pt_operator as pt_opt
 from pm4py.objects.process_tree import state as pt_st
 from pm4py.objects.process_tree import util as pt_util
 
+import datetime
 
 def generate_log(pt, no_traces=100):
     """
@@ -25,16 +26,23 @@ def generate_log(pt, no_traces=100):
     """
     log = EventLog()
 
+    # assigns to each event an increased timestamp from 1970
+    curr_timestamp = 0
+
     for i in range(no_traces):
         ex_seq = execute(pt)
         ex_seq_labels = pt_util.project_execution_sequence_to_labels(ex_seq)
-
         trace = Trace()
         trace.attributes[xes.DEFAULT_NAME_KEY] = str(i)
         for label in ex_seq_labels:
             event = Event()
             event[xes.DEFAULT_NAME_KEY] = label
+            event[xes.DEFAULT_TIMESTAMP_KEY] = datetime.datetime.fromtimestamp(curr_timestamp)
+            
             trace.append(event)
+
+            curr_timestamp = curr_timestamp + 1
+
         log.append(trace)
 
     return log
@@ -56,7 +64,7 @@ def execute(pt):
     """
     enabled, open, closed = set(), set(), set()
     enabled.add(pt)
-    populate_closed(pt.children, closed)
+    #populate_closed(pt.children, closed)
     execution_sequence = list()
     while len(enabled) > 0:
         execute_enabled(enabled, open, closed, execution_sequence)
@@ -112,7 +120,8 @@ def execute_enabled(enabled, open, closed, execution_sequence=None):
         elif vertex.operator is pt_opt.Operator.PARALLEL:
             enabled |= set(vertex.children)
             map(lambda c: execution_sequence.append((c, pt_st.State.ENABLED)), vertex.children)
-        elif vertex.operator is pt_opt.Operator.XOR:
+        # TODO: add proper support to OR (during the log generation, is considered as a XOR)
+        elif vertex.operator is pt_opt.Operator.XOR or vertex.operator is pt_opt.Operator.OR:
             vc = vertex.children
             c = vc[random.randint(0, len(vc) - 1)]
             enabled.add(c)
