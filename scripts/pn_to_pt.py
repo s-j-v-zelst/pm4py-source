@@ -39,11 +39,13 @@ def binary_loop_detection(net):
                 post_t1 = pn_util.post_set(t1)
                 pre_t2 = pn_util.pre_set(t2)
                 post_t2 = pn_util.post_set(t2)
-                if len(pre_t1) == 1 and len(post_t1) == 1 and len(pre_t2) == 1 and len(post_t2) == 1 and len(list(pre_t1)[0].out_arcs) == 1 and pre_t1 == post_t2 and len(
+                if len(pre_t1) == 1 and len(post_t1) == 1 and len(pre_t2) == 1 and len(
+                        post_t2) == 1 and pre_t1 == post_t2 and len(
                         pre_t2) == 1 and len(list(pre_t2)[0].in_arcs) == 1 and pre_t2 == post_t1:
+                    # and len(list(pre_t1)[0].out_arcs) == 1 removed to be able to have an order on the loop
                     t = petrinet.PetriNet.Transition(TRANSITION_PREFIX + str(datetime.datetime.now()))
                     t.label = str(pt_operator.Operator.LOOP) + '(' + generate_label_for_transition(
-                        t1) + ', ' + generate_label_for_transition(t2)  + ')'
+                        t1) + ', ' + generate_label_for_transition(t2) + ')'
                     net.transitions.add(t)
                     for a in t1.in_arcs:
                         pn_util.add_arc_from_to(a.source, t, net)
@@ -68,10 +70,15 @@ def binary_parallel_detection(net):
                     post_t2 = pn_util.post_set(t2)
                     if len(post_t1) == 1 and len(post_t2) == 1 and post_t1 != post_t2:
                         pre_pre_1 = pn_util.pre_set(list(pre_t1)[0])
+                        post_pre_1 = pn_util.post_set(list(pre_t1)[0])
                         pre_pre_2 = pn_util.pre_set(list(pre_t2)[0])
+                        post_pre_2 = pn_util.post_set(list(pre_t2)[0])
                         post_post_1 = pn_util.post_set(list(post_t1)[0])
+                        pre_post_1 = pn_util.pre_set(list(post_t1)[0])
                         post_post_2 = pn_util.post_set(list(post_t2)[0])
-                        if pre_pre_1 == pre_pre_2 and post_post_1 == post_post_2:
+                        pre_post_2 = pn_util.pre_set(list(post_t2)[0])
+                        if len(post_pre_1) == 1 and len(post_pre_2) == 1 and len(pre_post_1) == 1 and len(
+                                pre_post_2) == 1 and pre_pre_1 == pre_pre_2 and post_post_1 == post_post_2:
                             t = generate_new_binary_transition(t1, t2, pt_operator.Operator.PARALLEL, net)
                             net.transitions.add(t)
                             for a in t1.in_arcs:
@@ -138,16 +145,16 @@ def transform_pn_to_pt(net, i_m):
         stop = True
         petri_viz.view(petri_viz.apply(net, parameters={"format": "svg"}))
         time.sleep(1)
-        stop = binary_loop_detection(net) is None
+        stop = binary_choice_detection(net) is None
         if not stop:
             continue
         stop = binary_sequence_detection(net) is None
         if not stop:
             continue
-        stop = binary_choice_detection(net) is None
+        stop = binary_parallel_detection(net) is None
         if not stop:
             continue
-        stop = binary_parallel_detection(net) is None
+        stop = binary_loop_detection(net) is None
         if not stop:
             continue
 
@@ -167,10 +174,11 @@ if __name__ == "__main__":
     # pnml_path = 'C:/Users/zelst/Desktop/abcd_acbd_aed.pnml'
     # net, i_m, f_m = pnml_import.apply(pnml_path)
 
-    pt = pt_gen.apply(parameters={'min': 7, 'mode':10, 'max':12})
+    # pt = pt_gen.apply(parameters={'min': 7, 'mode':10, 'max':12})
+    pt = pt_gen.apply()
     pt_viz.view(pt_viz.apply(pt, parameters={"format": "svg"}))
     time.sleep(1)
     net, i_m, f_m = pt_conv.apply(pt)
-
-
+    petri_viz.view(petri_viz.apply(net, parameters={"format": "svg"}))
+    time.sleep(1)
     transform_pn_to_pt(net, i_m)
