@@ -1,4 +1,5 @@
 import copy
+import time
 import datetime
 import os
 
@@ -9,6 +10,8 @@ from pm4py.objects.process_tree import pt_operator
 from pm4py.objects.process_tree import util as pt_util
 from pm4py.visualization.petrinet import factory as petri_viz
 from pm4py.visualization.process_tree import factory as pt_viz
+from pm4py.algo.simulation.tree_generator import factory as pt_gen
+from pm4py.objects.conversion.process_tree import factory as pt_conv
 
 # random string to identify transitions that are added to the net by the algorithm (ugly is king)
 TRANSITION_PREFIX = 'qioqhacaoijdsafdqhjsalkj;nvas'
@@ -26,7 +29,7 @@ def generate_new_binary_transition(t1, t2, operator, net):
     return t
 
 
-def elementary_loop_detection(net):
+def binary_loop_detection(net):
     trans_set_1 = copy.copy(net.transitions)
     trans_set_2 = copy.copy(net.transitions)
     for t1 in trans_set_1:
@@ -36,11 +39,11 @@ def elementary_loop_detection(net):
                 post_t1 = pn_util.post_set(t1)
                 pre_t2 = pn_util.pre_set(t2)
                 post_t2 = pn_util.post_set(t2)
-                if len(pre_t1) == 1 and len(list(pre_t1)[0].out_arcs) == 1 and pre_t1 == post_t2 and len(
+                if len(pre_t1) == 1 and len(post_t1) == 1 and len(pre_t2) == 1 and len(post_t2) == 1 and len(list(pre_t1)[0].out_arcs) == 1 and pre_t1 == post_t2 and len(
                         pre_t2) == 1 and len(list(pre_t2)[0].in_arcs) == 1 and pre_t2 == post_t1:
                     t = petrinet.PetriNet.Transition(TRANSITION_PREFIX + str(datetime.datetime.now()))
                     t.label = str(pt_operator.Operator.LOOP) + '(' + generate_label_for_transition(
-                        t1) + ', ' + generate_label_for_transition(t2) + ', ' + 'tau' + ')'
+                        t1) + ', ' + generate_label_for_transition(t2)  + ')'
                     net.transitions.add(t)
                     for a in t1.in_arcs:
                         pn_util.add_arc_from_to(a.source, t, net)
@@ -52,7 +55,7 @@ def elementary_loop_detection(net):
     return None
 
 
-def elementary_parallel_detection(net):
+def binary_parallel_detection(net):
     trans_set_1 = copy.copy(net.transitions)
     trans_set_2 = copy.copy(net.transitions)
     for t1 in trans_set_1:
@@ -85,7 +88,7 @@ def elementary_parallel_detection(net):
     return None
 
 
-def elementary_choice_detection(net):
+def binary_choice_detection(net):
     trans_set_1 = copy.copy(net.transitions)
     trans_set_2 = copy.copy(net.transitions)
     for t1 in trans_set_1:
@@ -109,7 +112,7 @@ def elementary_choice_detection(net):
     return None
 
 
-def elementary_sequence_detection(net):
+def binary_sequence_detection(net):
     plcs = copy.copy(net.places)
     for p in plcs:
         if len(p.in_arcs) == 1 and len(p.out_arcs) == 1:
@@ -129,21 +132,22 @@ def elementary_sequence_detection(net):
     return None
 
 
-def transform_pn_to_pt(net):
+def transform_pn_to_pt(net, i_m):
     stop = False
     while not stop:
         stop = True
-        petri_viz.view(petri_viz.apply(net, parameters={"format": "svg", "debug": True}))
-        stop = elementary_loop_detection(net) is None
+        petri_viz.view(petri_viz.apply(net, parameters={"format": "svg"}))
+        time.sleep(1)
+        stop = binary_loop_detection(net) is None
         if not stop:
             continue
-        stop = elementary_sequence_detection(net) is None
+        stop = binary_sequence_detection(net) is None
         if not stop:
             continue
-        stop = elementary_choice_detection(net) is None
+        stop = binary_choice_detection(net) is None
         if not stop:
             continue
-        stop = elementary_parallel_detection(net) is None
+        stop = binary_parallel_detection(net) is None
         if not stop:
             continue
 
@@ -151,14 +155,22 @@ def transform_pn_to_pt(net):
         pt_str = list(net.transitions)[0].label
         pt = pt_util.parse(pt_str)
         pt_viz.view(pt_viz.apply(pt, parameters={"format": "svg"}))
+        time.sleep(1)
 
 
 if __name__ == "__main__":
     # pnml_path = os.path.join('..', "tests", "input_data", "running-example.pnml")
-    pnml_path = 'C:/Users/bas/Documents/tue/svn/private/logs/a12_logs/reference.apnml'
-    # pnml_path = 'C:/Users/bas/Documents/tue/svn/private/logs/a22_logs/a22f0n00_ref.apnml'
-    # pnml_path = 'C:/Users/bas/Documents/tue/svn/private/logs/a32_logs/a32f0n00_reference.apnml'
-    # pnml_path = 'C:/Users/bas/Documents/tue/svn/private/logs/a42_logs/a42f00n00_ref.apnml'
+    # pnml_path = 'C:/Users/zelst/rwth/bas/Documents/tue/svn/private/logs/a12_logs/reference.apnml'
+    # pnml_path = 'C:/Users/zelst/rwth/bas/Documents/tue/svn/private/logs/a22_logs/a22f0n00_ref.apnml'
+    # pnml_path = 'C:/Users/zelst/rwth/bas/Documents/tue/svn/private/logs/a32_logs/a32f0n00_reference.apnml'
+    # pnml_path = 'C:/Users/zelst/rwth/bas/Documents/tue/svn/private/logs/a42_logs/a42f00n00_ref.apnml'
+    # pnml_path = 'C:/Users/zelst/Desktop/abcd_acbd_aed.pnml'
+    # net, i_m, f_m = pnml_import.apply(pnml_path)
 
-    net, i_m, f_m = pnml_import.apply(pnml_path)
-    transform_pn_to_pt(net)
+    pt = pt_gen.apply(parameters={'min': 7, 'mode':10, 'max':12})
+    pt_viz.view(pt_viz.apply(pt, parameters={"format": "svg"}))
+    time.sleep(1)
+    net, i_m, f_m = pt_conv.apply(pt)
+
+
+    transform_pn_to_pt(net, i_m)
