@@ -1,3 +1,5 @@
+from pm4py.objects.process_tree import pt_operator
+
 class ProcessTree(object):
 
     def __init__(self, operator=None, parent=None, children=None, label=None):
@@ -43,6 +45,31 @@ class ProcessTree(object):
 
     def _get_label(self):
         return self._label
+
+    def __eq__(self, other):
+        if self.label is not None:
+            return True if other.label == self.label else False
+        else:
+            if self.operator == other.operator:
+                if len(self.children) != len(other.children):
+                    return False
+                if self.operator in [pt_operator.Operator.SEQUENCE, pt_operator.Operator.LOOP]:
+                    for i in range(len(self.children)):
+                        if self.children[i] != other.children[i]:
+                            return False
+                    return True
+                elif self.operator in [pt_operator.Operator.PARALLEL, pt_operator.Operator.XOR]:
+                    matches = list(range(len(self.children)))
+                    for i in range(len(self.children)):
+                        mm = [m for m in matches]
+                        for j in mm:
+                            if self.children[i] == other.children[j]:
+                                matches.remove(j)
+                                break
+                    return True if len(matches)==0 else False
+            else:
+                return False
+
 
     def __repr__(self):
         """

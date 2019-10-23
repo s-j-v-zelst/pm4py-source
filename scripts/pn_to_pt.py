@@ -143,8 +143,8 @@ def transform_pn_to_pt(net, i_m):
     stop = False
     while not stop:
         stop = True
-        petri_viz.view(petri_viz.apply(net, parameters={"format": "svg"}))
-        time.sleep(1)
+        # petri_viz.view(petri_viz.apply(net, parameters={"format": "svg"}))
+        # time.sleep(1)
         stop = binary_choice_detection(net) is None
         if not stop:
             continue
@@ -165,26 +165,49 @@ def transform_pn_to_pt(net, i_m):
 
 
 if __name__ == "__main__":
+    '''
+    i = 1
+    while True:
+        pt = pt_util.compress(pt_gen.apply())
+        net, i_m, f_m = pt_conv.apply(pt)
+        ptx = pt_util.compress(pt_util.reduce_tau_leafs(transform_pn_to_pt(net, i_m)))
+        if pt == ptx:
+            print(i)
+            i += 1
+        else:
+            print('error')
+            pt_viz.view(pt_viz.apply(pt, parameters={"format": "svg"}))
+            time.sleep(1)
+            pt_viz.view(pt_viz.apply(ptx, parameters={"format": "svg"}))
+            print(i)
+            break
+    '''
     # pnml_path = os.path.join('..', "tests", "input_data", "running-example.pnml")
     # pnml_path = 'C:/Users/zelst/rwth/bas/Documents/tue/svn/private/logs/a12_logs/reference.apnml'
     # pnml_path = 'C:/Users/zelst/rwth/bas/Documents/tue/svn/private/logs/a22_logs/a22f0n00_ref.apnml'
     # pnml_path = 'C:/Users/zelst/rwth/bas/Documents/tue/svn/private/logs/a32_logs/a32f0n00_reference.apnml'
     # pnml_path = 'C:/Users/zelst/rwth/bas/Documents/tue/svn/private/logs/a42_logs/a42f00n00_ref.apnml'
     # pnml_path = 'C:/Users/zelst/Desktop/abcd_acbd_aed.pnml'
+    # pnml_path = 'C:/Users/zelst/Desktop/running-example.pnml'
     # net, i_m, f_m = pnml_import.apply(pnml_path)
 
-    # pt = pt_gen.apply(parameters={'min': 7, 'mode':10, 'max':12})
-    pt = pt_util.compress(pt_gen.apply())
+    #pt = pt_gen.apply(parameters={'min': 250, 'mode':350, 'max':450})
+    # pt = pt_gen.apply()
+    pt_str = '->(\'a\',*(\'a\',\'b\'),\'c\')'
+    pt_viz.view(pt_viz.apply(pt, parameters={"format": "svg"}))
+    time.sleep(1)
+    pt = pt_util.compress(pt)
     pt_viz.view(pt_viz.apply(pt, parameters={"format": "svg"}))
     time.sleep(1)
     net, i_m, f_m = pt_conv.apply(pt)
     petri_viz.view(petri_viz.apply(net, parameters={"format": "svg"}))
     time.sleep(1)
-    pt = transform_pn_to_pt(net, i_m)
-    pt_viz.view(pt_viz.apply(pt, parameters={"format": "svg"}))
+    ptx = transform_pn_to_pt(net, i_m)
+    pt_viz.view(pt_viz.apply(ptx, parameters={"format": "svg"}))
     time.sleep(1)
-    pt = pt_util.reduce_tau_leafs(pt)
-    pt_viz.view(pt_viz.apply(pt, parameters={"format": "svg"}))
+    ptx = pt_util.reduce_tau_leafs(ptx)
+    pt_viz.view(pt_viz.apply(ptx, parameters={"format": "svg"}))
     time.sleep(1)
-    pt = pt_util.compress(pt)
-    pt_viz.view(pt_viz.apply(pt, parameters={"format": "svg"}))
+    ptx = pt_util.compress(ptx)
+    pt_viz.view(pt_viz.apply(ptx, parameters={"format": "svg"}))
+    print(pt == ptx)

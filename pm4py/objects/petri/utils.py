@@ -15,12 +15,11 @@ def reduce_silent_transitions(pn):
         if len(pre_set(t)) == 1 and len(post_set(t)) == 1 and t.label is None:
             pre = list(pre_set(t))[0]
             post = list(post_set(t))[0]
-            if len(post_set(pre)) == 1 and len(pre_set(post)) == 1:
-                if len(pre_set(pre)) > 0:
-                    for tt in pre_set(pre):
-                        add_arc_from_to(tt, post, pn)
-                    remove_transition(pn, t)
-                    remove_place(pn, post)
+            if len(pre_set(pre)) == 1 and len(post_set(pre)) == 1 and len(pre_set(post)) == 1 and len(post_set(post)) == 1:
+                for tt in pre_set(pre):
+                    add_arc_from_to(tt, post, pn)
+                remove_transition(pn, t)
+                remove_place(pn, post)
     return pn
 
 
