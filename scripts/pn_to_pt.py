@@ -41,7 +41,7 @@ def binary_loop_detection(net):
                 post_t2 = pn_util.post_set(t2)
                 if len(pre_t1) == 1 and len(post_t1) == 1 and len(pre_t2) == 1 and len(
                         post_t2) == 1 and pre_t1 == post_t2 and len(
-                        pre_t2) == 1 and len(list(pre_t2)[0].in_arcs) == 1 and pre_t2 == post_t1:
+                        pre_t2) == 1 and len(list(pre_t2)[0].in_arcs) == 1 and len(list(pre_t1)[0].out_arcs) == 1 and pre_t2 == post_t1:
                     # and len(list(pre_t1)[0].out_arcs) == 1 removed to be able to have an order on the loop
                     t = petrinet.PetriNet.Transition(TRANSITION_PREFIX + str(datetime.datetime.now()))
                     t.label = str(pt_operator.Operator.LOOP) + '(' + generate_label_for_transition(
@@ -161,8 +161,7 @@ def transform_pn_to_pt(net, i_m):
     if len(net.transitions) == 1:
         pt_str = list(net.transitions)[0].label
         pt = pt_util.parse(pt_str)
-        pt_viz.view(pt_viz.apply(pt, parameters={"format": "svg"}))
-        time.sleep(1)
+        return pt
 
 
 if __name__ == "__main__":
@@ -175,10 +174,17 @@ if __name__ == "__main__":
     # net, i_m, f_m = pnml_import.apply(pnml_path)
 
     # pt = pt_gen.apply(parameters={'min': 7, 'mode':10, 'max':12})
-    pt = pt_gen.apply()
+    pt = pt_util.compress(pt_gen.apply())
     pt_viz.view(pt_viz.apply(pt, parameters={"format": "svg"}))
     time.sleep(1)
     net, i_m, f_m = pt_conv.apply(pt)
     petri_viz.view(petri_viz.apply(net, parameters={"format": "svg"}))
     time.sleep(1)
-    transform_pn_to_pt(net, i_m)
+    pt = transform_pn_to_pt(net, i_m)
+    pt_viz.view(pt_viz.apply(pt, parameters={"format": "svg"}))
+    time.sleep(1)
+    pt = pt_util.reduce_tau_leafs(pt)
+    pt_viz.view(pt_viz.apply(pt, parameters={"format": "svg"}))
+    time.sleep(1)
+    pt = pt_util.compress(pt)
+    pt_viz.view(pt_viz.apply(pt, parameters={"format": "svg"}))
