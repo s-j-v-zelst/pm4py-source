@@ -41,7 +41,8 @@ def binary_loop_detection(net):
                 post_t2 = pn_util.post_set(t2)
                 if len(pre_t1) == 1 and len(post_t1) == 1 and len(pre_t2) == 1 and len(
                         post_t2) == 1 and pre_t1 == post_t2 and len(
-                        pre_t2) == 1 and len(list(pre_t2)[0].in_arcs) == 1 and len(list(pre_t1)[0].out_arcs) == 1 and pre_t2 == post_t1:
+                    pre_t2) == 1 and len(list(pre_t2)[0].in_arcs) == 1 and len(
+                    list(pre_t1)[0].out_arcs) == 1 and pre_t2 == post_t1:
                     # and len(list(pre_t1)[0].out_arcs) == 1 removed to be able to have an order on the loop
                     t = petrinet.PetriNet.Transition(TRANSITION_PREFIX + str(datetime.datetime.now()))
                     t.label = str(pt_operator.Operator.LOOP) + '(' + generate_label_for_transition(
@@ -165,11 +166,11 @@ def transform_pn_to_pt(net, i_m):
 
 
 if __name__ == "__main__":
-    '''
     i = 1
     while True:
         pt = pt_util.compress(pt_gen.apply())
         net, i_m, f_m = pt_conv.apply(pt)
+        # print(check_block_structured_property(net))
         ptx = pt_util.compress(pt_util.reduce_tau_leafs(transform_pn_to_pt(net, i_m)))
         if pt == ptx:
             print(i)
@@ -188,18 +189,19 @@ if __name__ == "__main__":
     # pnml_path = 'C:/Users/zelst/rwth/bas/Documents/tue/svn/private/logs/a32_logs/a32f0n00_reference.apnml'
     # pnml_path = 'C:/Users/zelst/rwth/bas/Documents/tue/svn/private/logs/a42_logs/a42f00n00_ref.apnml'
     # pnml_path = 'C:/Users/zelst/Desktop/abcd_acbd_aed.pnml'
-    # pnml_path = 'C:/Users/zelst/Desktop/running-example.pnml'
-    # net, i_m, f_m = pnml_import.apply(pnml_path)
+    pnml_path = 'C:/Users/zelst/Desktop/running-example.pnml'
+    net, i_m, f_m = pnml_import.apply(pnml_path)
 
-    #pt = pt_gen.apply(parameters={'min': 250, 'mode':350, 'max':450})
+    # pt = pt_gen.apply(parameters={'min': 250, 'mode':350, 'max':450})
     # pt = pt_gen.apply()
-    pt_str = '->(\'a\',*(\'a\',\'b\'),\'c\')'
-    pt_viz.view(pt_viz.apply(pt, parameters={"format": "svg"}))
-    time.sleep(1)
-    pt = pt_util.compress(pt)
-    pt_viz.view(pt_viz.apply(pt, parameters={"format": "svg"}))
-    time.sleep(1)
-    net, i_m, f_m = pt_conv.apply(pt)
+    # pt_str = '->(\'a\',*(\'a\',\'b\'),\'c\')'
+    # pt = pt_util.parse(pt_str)
+    # pt_viz.view(pt_viz.apply(pt, parameters={"format": "svg"}))
+    # time.sleep(1)
+    # pt = pt_util.compress(pt)
+    # pt_viz.view(pt_viz.apply(pt, parameters={"format": "svg"}))
+    # time.sleep(1)
+    # net, i_m, f_m = pt_conv.apply(pt)
     petri_viz.view(petri_viz.apply(net, parameters={"format": "svg"}))
     time.sleep(1)
     ptx = transform_pn_to_pt(net, i_m)
@@ -211,3 +213,4 @@ if __name__ == "__main__":
     ptx = pt_util.compress(ptx)
     pt_viz.view(pt_viz.apply(ptx, parameters={"format": "svg"}))
     print(pt == ptx)
+    '''
