@@ -3,12 +3,12 @@ from pm4py.objects.process_tree import pt_operator as pt_op
 from pm4py.objects.process_tree import state as pt_st
 
 
-def compress(tree):
+def fold(tree):
     if len(tree.children) > 0:
         for c in tree.children:
-            compress(c)
-        cc = tree.children
-        for c in cc:
+            fold(c)
+        children = tree.children
+        for c in children:
             if c.label is None:
                 if len(c.children) == 0:
                     tree.children.remove(c)
@@ -16,19 +16,17 @@ def compress(tree):
                 elif len(c.children) == 1:
                     i = tree.children.index(c)
                     tree.children[i:i] = c.children
-                    # tree.children.extend(c.children)
                     for cc in c.children:
                         cc.parent = tree
                     tree.children.remove(c)
                     c.children.clear()
                     c.parent = None
         if tree.operator in [pt_op.Operator.SEQUENCE, pt_op.Operator.XOR, pt_op.Operator.PARALLEL]:
-            chlds = [c for c in tree.children]
-            for c in chlds:
+            children = tree.children
+            for c in children:
                 if c.operator == tree.operator:
                     i = tree.children.index(c)
                     tree.children[i:i] = c.children
-                    # tree.children.extend(c.children)
                     for cc in c.children:
                         cc.parent = tree
                     tree.children.remove(c)
@@ -36,6 +34,7 @@ def compress(tree):
                     c.parent = None
     if tree.parent is None and len(tree.children) == 1:
         root = tree.children[0]
+        root.parent = None
         tree.children.clear()
         return root
     return tree
@@ -52,6 +51,7 @@ def reduce_tau_leafs(tree):
                     c.parent = None
                     tree.children.remove(c)
     return tree
+
 
 def project_execution_sequence_to_leafs(execution_sequence):
     """

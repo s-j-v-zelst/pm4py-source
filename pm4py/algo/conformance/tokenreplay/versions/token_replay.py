@@ -5,7 +5,7 @@ from pm4py import util as pmutil
 from pm4py.algo.filtering.log.variants import variants_filter as variants_module
 from pm4py.objects.log.util import xes as xes_util
 from pm4py.objects.petri import semantics
-from pm4py.objects.petri.utils import get_places_shortest_path_by_hidden, get_s_components_from_petri
+# from pm4py.objects.petri.utils import get_places_shortest_path_by_hidden, get_s_components_from_petri
 from pm4py.util import constants
 from pm4py.objects.log import log as log_implementation
 from pm4py.objects.petri.importer.versions import pnml as petri_importer

@@ -9,6 +9,7 @@ from pm4py.objects.log.log import Trace, Event
 from pm4py.objects.log.util import xes as xes_util
 from pm4py.objects.petri.check_soundness import check_petri_wfnet_and_soundness
 from pm4py.objects.petri.networkx_graph import create_networkx_directed_graph
+from pm4py.visualization.petrinet import factory as pn_viz
 
 
 def pre_set(elem):
@@ -23,6 +24,25 @@ def post_set(elem):
     for a in elem.out_arcs:
         post.add(a.target)
     return post
+
+
+def reduce_silent_transitions(net):
+    tt = [t for t in net.transitions]
+    for t in tt:
+        if t.label is None and len(pre_set(t)) == 1 and len(post_set(t)) == 1:
+            if t in net.transitions:
+                pre_t = list(pre_set(t))[0]
+                post_t = list(post_set(t))[0]
+                if len(post_set(pre_t)) == 1 and len(pre_set(post_t)) == 1 and len(post_set(post_t)) > 0:
+                    pn_viz.view(pn_viz.apply(net, parameters={"format": "svg"}))
+                    time.sleep(1)
+                    for x in post_set(post_t):
+                        add_arc_from_to(pre_t, x, net)
+                    remove_transition(net, t)
+                    remove_place(net, post_t)
+                    # pn_viz.view(pn_viz.apply(net, parameters={"format": "svg"}))
+                    # time.sleep(1)
+    return net
 
 
 def remove_transition(net, trans):
@@ -507,3 +527,6 @@ def get_s_components_from_petri(net, im, fm, rec_depth=0, curr_s_comp=None, visi
         list_s_components.append(set([place.name for place in curr_s_comp]))
 
     return list_s_components
+
+
+

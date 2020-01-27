@@ -1,7 +1,7 @@
 import networkx as nx
 
 from pm4py.objects.petri.petrinet import PetriNet, Marking
-from pm4py.objects.petri.utils import add_arc_from_to, remove_transition
+# from pm4py.objects.petri.utils import add_arc_from_to, remove_transition
 
 
 def remove_rendundant_invisible_transitions(net):
