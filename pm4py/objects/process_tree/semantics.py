@@ -1,16 +1,34 @@
 import random
 
 from pm4py.objects.log.log import EventLog, Trace, Event
-from pm4py.objects.log.util import xes
+from pm4py.util import xes_constants as xes
 from pm4py.objects.process_tree import pt_operator as pt_opt
 from pm4py.objects.process_tree import state as pt_st
 from pm4py.objects.process_tree import util as pt_util
 from pm4py.objects.process_tree.process_tree import ProcessTree
 
 import datetime
+from copy import deepcopy
 
 
-def generate_log(pt, no_traces=100):
+class GenerationTree(ProcessTree):
+    # extend the parent class to replace the __eq__ and __hash__ method
+    def __init__(self, tree):
+        i = 0
+        while i < len(tree.children):
+            tree.children[i] = GenerationTree(tree.children[i])
+            i = i + 1
+        ProcessTree.__init__(self, operator=tree.operator, parent=tree.parent, children=tree.children, label=tree.label)
+
+    def __eq__(self, other):
+        # method that is different from default one (different taus must give different ID in log generation!!!!)
+        return id(self) == id(other)
+
+    def __hash__(self):
+        return id(self)
+
+
+def generate_log(pt0, no_traces=100):
     """
     Generate a log out of a process tree
 
@@ -26,6 +44,11 @@ def generate_log(pt, no_traces=100):
     log
         Trace log object
     """
+    pt = deepcopy(pt0)
+    # different taus must give different ID in log generation!!!!
+    # so we cannot use the default process tree class
+    # we use this different one!
+    pt = GenerationTree(pt)
     log = EventLog()
 
     # assigns to each event an increased timestamp from 1970
@@ -124,6 +147,9 @@ def execute_enabled(enabled, open, closed, execution_sequence=None):
             execution_sequence.append((c, pt_st.State.ENABLED))
         elif vertex.operator is pt_opt.Operator.PARALLEL:
             enabled |= set(vertex.children)
+            for x in vertex.children:
+                if x in closed:
+                    closed.remove(x)
             map(lambda c: execution_sequence.append((c, pt_st.State.ENABLED)), vertex.children)
         elif vertex.operator is pt_opt.Operator.XOR:
             vc = vertex.children
@@ -133,6 +159,9 @@ def execute_enabled(enabled, open, closed, execution_sequence=None):
         elif vertex.operator is pt_opt.Operator.OR:
             some_children = [c for c in vertex.children if random.random() < 0.5]
             enabled |= set(some_children)
+            for x in some_children:
+                if x in closed:
+                    closed.remove(x)
             map(lambda c: execution_sequence.append((c, pt_st.State.ENABLED)), some_children)
     else:
         close(vertex, enabled, open, closed, execution_sequence)
@@ -218,5 +247,7 @@ def should_close(vertex, closed, child):
         return True
     elif vertex.operator is pt_opt.Operator.LOOP or vertex.operator is pt_opt.Operator.SEQUENCE:
         return vertex.children.index(child) == len(vertex.children) - 1
+    elif vertex.operator is pt_opt.Operator.XOR:
+        return True
     else:
         return set(vertex.children) <= closed

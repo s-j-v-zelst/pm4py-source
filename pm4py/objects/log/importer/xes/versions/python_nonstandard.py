@@ -1,7 +1,7 @@
-import ciso8601
+from pm4py.util.dt_parsing import factory as dt_parse_factory
 import os
 
-from pm4py.objects import log as log_lib
+from pm4py.objects.log.log import EventLog, Trace, Event
 from pm4py.objects.log.util import sorting
 
 
@@ -31,6 +31,8 @@ def import_log(filename, parameters=None):
     if parameters is None:
         parameters = {}
 
+    date_parser = dt_parse_factory.get()
+
     timestamp_sort = False
     timestamp_key = "time:timestamp"
     reverse_sort = False
@@ -57,7 +59,7 @@ def import_log(filename, parameters=None):
     if file_size > max_bytes_to_read:
         skip_bytes = file_size - max_bytes_to_read
 
-    log = log_lib.log.EventLog()
+    log = EventLog()
     tracecount = 0
     trace = None
     event = None
@@ -75,7 +77,7 @@ def import_log(filename, parameters=None):
                         if tag.startswith("string"):
                             event[content[1]] = content[3]
                         elif tag.startswith("date"):
-                            event[content[1]] = ciso8601.parse_datetime(content[3])
+                            event[content[1]] = date_parser.apply(content[3])
                         elif tag.startswith("int"):
                             event[content[1]] = int(content[3])
                         elif tag.startswith("float"):
@@ -86,12 +88,12 @@ def import_log(filename, parameters=None):
                         trace.append(event)
                         event = None
                 elif tag.startswith("event"):
-                    event = log_lib.log.Event()
+                    event = Event()
                 elif len(content) == 5:
                     if tag.startswith("string"):
                         trace.attributes[content[1]] = content[3]
                     elif tag.startswith("date"):
-                        trace.attributes[content[1]] = ciso8601.parse_datetime(content[3])
+                        trace.attributes[content[1]] = date_parser.apply(content[3])
                     elif tag.startswith("int"):
                         trace.attributes[content[1]] = int(content[3])
                     elif tag.startswith("float"):
@@ -105,7 +107,7 @@ def import_log(filename, parameters=None):
                         break
                     trace = None
             elif tag.startswith("trace"):
-                trace = log_lib.log.Trace()
+                trace = Trace()
     f.close()
 
     if timestamp_sort:

@@ -3,27 +3,31 @@ from copy import copy
 import pm4py
 import sys
 from pm4py import util as pmutil
-from pm4py.algo.conformance import alignments as ali
 from pm4py.algo.conformance.alignments import versions
-from pm4py.algo.conformance.alignments.utils import STD_MODEL_LOG_MOVE_COST
+from pm4py.objects.petri import align_utils
 from pm4py.algo.conformance.alignments.versions.state_equation_a_star import PARAM_MODEL_COST_FUNCTION
 from pm4py.algo.conformance.alignments.versions.state_equation_a_star import PARAM_SYNC_COST_FUNCTION
 from pm4py.algo.conformance.alignments.versions.state_equation_a_star import PARAM_TRACE_COST_FUNCTION
-from pm4py.algo.filtering.log.variants import variants_filter as variants_module
+from pm4py.statistics.variants.log import get as variants_module
 from pm4py.objects.conversion.log import factory as log_converter
-from pm4py.objects.log.util import general as log_util
-from pm4py.objects.log.util import xes as xes_util
-from pm4py.objects.log.util.xes import DEFAULT_NAME_KEY
+from pm4py.util import xes_constants as xes_util
+from pm4py.util.xes_constants import DEFAULT_NAME_KEY
 from pm4py.util.constants import PARAMETER_CONSTANT_ACTIVITY_KEY
 import multiprocessing as mp
 from pm4py.objects.petri.exporter.versions import pnml as petri_exporter
+from pm4py.objects.petri import check_soundness
 import math
 import time
 
 VERSION_STATE_EQUATION_A_STAR = 'state_equation_a_star'
-VERSIONS = {VERSION_STATE_EQUATION_A_STAR: versions.state_equation_a_star.apply}
-VERSIONS_COST = {VERSION_STATE_EQUATION_A_STAR: versions.state_equation_a_star.get_best_worst_cost}
-VERSIONS_VARIANTS_LIST_MPROCESSING = {VERSION_STATE_EQUATION_A_STAR: versions.state_equation_a_star.apply_from_variants_list_petri_string_mprocessing}
+VERSION_DIJKSTRA_NO_HEURISTICS = 'dijkstra_no_heuristics'
+
+
+DEFAULT_VARIANT = VERSION_STATE_EQUATION_A_STAR
+
+VERSIONS = {VERSION_STATE_EQUATION_A_STAR: versions.state_equation_a_star.apply, VERSION_DIJKSTRA_NO_HEURISTICS: versions.dijkstra_no_heuristics.apply}
+VERSIONS_COST = {VERSION_STATE_EQUATION_A_STAR: versions.state_equation_a_star.get_best_worst_cost, VERSION_DIJKSTRA_NO_HEURISTICS: versions.dijkstra_no_heuristics.get_best_worst_cost}
+VERSIONS_VARIANTS_LIST_MPROCESSING = {VERSION_STATE_EQUATION_A_STAR: versions.state_equation_a_star.apply_from_variants_list_petri_string_mprocessing, VERSION_DIJKSTRA_NO_HEURISTICS: versions.dijkstra_no_heuristics.apply_from_variants_list_petri_string_mprocessing}
 
 VARIANTS_IDX = 'variants_idx'
 
@@ -32,7 +36,7 @@ DEFAULT_MAX_ALIGN_TIME_TRACE = sys.maxsize
 PARAM_MAX_ALIGN_TIME = "max_align_time"
 DEFAULT_MAX_ALIGN_TIME = sys.maxsize
 
-def apply(obj, petri_net, initial_marking, final_marking, parameters=None, version=VERSION_STATE_EQUATION_A_STAR):
+def apply(obj, petri_net, initial_marking, final_marking, parameters=None, version=DEFAULT_VARIANT):
     if parameters is None:
         parameters = {}
     if pmutil.constants.PARAMETER_CONSTANT_ACTIVITY_KEY not in parameters:
@@ -40,7 +44,7 @@ def apply(obj, petri_net, initial_marking, final_marking, parameters=None, versi
     if pmutil.constants.PARAMETER_CONSTANT_TIMESTAMP_KEY not in parameters:
         parameters[pmutil.constants.PARAMETER_CONSTANT_TIMESTAMP_KEY] = xes_util.DEFAULT_TIMESTAMP_KEY
     if pmutil.constants.PARAMETER_CONSTANT_CASEID_KEY not in parameters:
-        parameters[pmutil.constants.PARAMETER_CONSTANT_CASEID_KEY] = log_util.CASE_ATTRIBUTE_GLUE
+        parameters[pmutil.constants.PARAMETER_CONSTANT_CASEID_KEY] = pmutil.constants.CASE_ATTRIBUTE_GLUE
     if isinstance(obj, pm4py.objects.log.log.Trace):
         return apply_trace(obj, petri_net, initial_marking, final_marking, parameters, version)
     else:
@@ -49,7 +53,7 @@ def apply(obj, petri_net, initial_marking, final_marking, parameters=None, versi
 
 
 def apply_trace(trace, petri_net, initial_marking, final_marking, parameters=None,
-                version=VERSION_STATE_EQUATION_A_STAR):
+                version=DEFAULT_VARIANT):
     """
     apply alignments to a trace
     Parameters
@@ -85,11 +89,11 @@ def apply_trace(trace, petri_net, initial_marking, final_marking, parameters=Non
         parameters = copy({PARAMETER_CONSTANT_ACTIVITY_KEY: DEFAULT_NAME_KEY})
     if PARAM_TRACE_COST_FUNCTION not in parameters:
         parameters[PARAM_TRACE_COST_FUNCTION] = list(
-            map(lambda e: STD_MODEL_LOG_MOVE_COST, trace))
+            map(lambda e: align_utils.STD_MODEL_LOG_MOVE_COST, trace))
     return VERSIONS[version](trace, petri_net, initial_marking, final_marking, parameters)
 
 
-def apply_log(log, petri_net, initial_marking, final_marking, parameters=None, version=VERSION_STATE_EQUATION_A_STAR):
+def apply_log(log, petri_net, initial_marking, final_marking, parameters=None, version=DEFAULT_VARIANT):
     """
     apply alignments to a log
     Parameters
@@ -125,6 +129,10 @@ def apply_log(log, petri_net, initial_marking, final_marking, parameters=None, v
     if parameters is None:
         parameters = dict()
 
+    if not check_soundness.check_relaxed_soundness_net_in_fin_marking(petri_net, initial_marking, final_marking):
+        raise Exception("trying to apply alignments on a Petri net that is not a relaxed sound net!!")
+
+
     start_time = time.time()
     activity_key = parameters[
         PARAMETER_CONSTANT_ACTIVITY_KEY] if PARAMETER_CONSTANT_ACTIVITY_KEY in parameters else DEFAULT_NAME_KEY
@@ -142,7 +150,7 @@ def apply_log(log, petri_net, initial_marking, final_marking, parameters=None, v
         sync_cost_function = dict()
         for t in petri_net.transitions:
             if t.label is not None:
-                model_cost_function[t] = ali.utils.STD_MODEL_LOG_MOVE_COST
+                model_cost_function[t] = align_utils.STD_MODEL_LOG_MOVE_COST
                 sync_cost_function[t] = 0
             else:
                 model_cost_function[t] = 1
@@ -189,12 +197,12 @@ def apply_log(log, petri_net, initial_marking, final_marking, parameters=None, v
     # assign fitness to traces
     for index, align in enumerate(alignments):
         if align is not None:
-            unfitness_upper_part = align['cost'] // ali.utils.STD_MODEL_LOG_MOVE_COST
+            unfitness_upper_part = align['cost'] // align_utils.STD_MODEL_LOG_MOVE_COST
             if unfitness_upper_part == 0:
                 align['fitness'] = 1
             elif (len(log[index]) + best_worst_cost) > 0:
                 align['fitness'] = 1 - (
-                        (align['cost'] // ali.utils.STD_MODEL_LOG_MOVE_COST) / (len(log[index]) + best_worst_cost))
+                        (align['cost'] // align_utils.STD_MODEL_LOG_MOVE_COST) / (len(log[index]) + best_worst_cost))
             else:
                 align['fitness'] = 0
     return alignments
@@ -203,9 +211,13 @@ def chunks(l, n):
     for i in range(0, len(l), n):
         yield l[i:i + n]
 
-def apply_log_multiprocessing(log, petri_net, initial_marking, final_marking, parameters=None, version=VERSION_STATE_EQUATION_A_STAR):
+def apply_log_multiprocessing(log, petri_net, initial_marking, final_marking, parameters=None, version=DEFAULT_VARIANT):
     if parameters is None:
         parameters = dict()
+
+    if not check_soundness.check_relaxed_soundness_net_in_fin_marking(petri_net, initial_marking, final_marking):
+        raise Exception("trying to apply alignments on a Petri net that is not a relaxed sound net!!")
+
     activity_key = parameters[
         PARAMETER_CONSTANT_ACTIVITY_KEY] if PARAMETER_CONSTANT_ACTIVITY_KEY in parameters else DEFAULT_NAME_KEY
     model_cost_function = parameters[
@@ -218,7 +230,7 @@ def apply_log_multiprocessing(log, petri_net, initial_marking, final_marking, pa
         sync_cost_function = dict()
         for t in petri_net.transitions:
             if t.label is not None:
-                model_cost_function[t] = ali.utils.STD_MODEL_LOG_MOVE_COST
+                model_cost_function[t] = align_utils.STD_MODEL_LOG_MOVE_COST
                 sync_cost_function[t] = 0
             else:
                 model_cost_function[t] = 1
@@ -275,12 +287,12 @@ def apply_log_multiprocessing(log, petri_net, initial_marking, final_marking, pa
     # assign fitness to traces
     for index, align in enumerate(alignments):
         if align is not None:
-            unfitness_upper_part = align['cost'] // ali.utils.STD_MODEL_LOG_MOVE_COST
+            unfitness_upper_part = align['cost'] // align_utils.STD_MODEL_LOG_MOVE_COST
             if unfitness_upper_part == 0:
                 align['fitness'] = 1
             elif (len(log[index]) + best_worst_cost) > 0:
                 align['fitness'] = 1 - (
-                        (align['cost'] // ali.utils.STD_MODEL_LOG_MOVE_COST) / (len(log[index]) + best_worst_cost))
+                        (align['cost'] // align_utils.STD_MODEL_LOG_MOVE_COST) / (len(log[index]) + best_worst_cost))
             else:
                 align['fitness'] = 0
 

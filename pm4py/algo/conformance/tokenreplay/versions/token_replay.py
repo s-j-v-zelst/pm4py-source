@@ -1,20 +1,20 @@
 from copy import copy
-from threading import Thread
 
 from pm4py import util as pmutil
-from pm4py.algo.filtering.log.variants import variants_filter as variants_module
-from pm4py.objects.log.util import xes as xes_util
+from pm4py.statistics.variants.log import get as variants_module
+from pm4py.util import xes_constants as xes_util
 from pm4py.objects.petri import semantics
 # from pm4py.objects.petri.utils import get_places_shortest_path_by_hidden, get_s_components_from_petri
 from pm4py.util import constants
 from pm4py.objects.log import log as log_implementation
 from pm4py.objects.petri.importer.versions import pnml as petri_importer
-
+from pm4py.objects.petri import align_utils
+from copy import deepcopy, copy
 
 PARAMETER_VARIANT_DELIMITER = "variant_delimiter"
 DEFAULT_VARIANT_DELIMITER = ","
 
-MAX_REC_DEPTH = 18
+MAX_REC_DEPTH = 50
 MAX_IT_FINAL1 = 5
 MAX_IT_FINAL2 = 5
 MAX_REC_DEPTH_HIDTRANSENABL = 2
@@ -67,9 +67,11 @@ def get_consumed_tokens(t):
         Transition that should be enabled
     """
     consumed = 0
+    consumed_map = {}
     for a in t.in_arcs:
         consumed = consumed + a.weight
-    return consumed
+        consumed_map[a.source] = a.weight
+    return consumed, consumed_map
 
 
 def get_produced_tokens(t):
@@ -82,9 +84,11 @@ def get_produced_tokens(t):
         Transition that should be enabled
     """
     produced = 0
+    produced_map = {}
     for a in t.out_arcs:
         produced = produced + a.weight
-    return produced
+        produced_map[a.target] = a.weight
+    return produced, produced_map
 
 
 def merge_dicts(x, y):
@@ -104,35 +108,6 @@ def merge_dicts(x, y):
         else:
             if y[key] < x[key]:
                 x[key] = y[key]
-
-
-def get_hidden_trans_reached_trans(t, net, rec_depth):
-    """
-    Get visible transitions reachable by enabling a hidden transition
-
-    Parameters
-    ----------
-    t
-        Transition that should be enabled
-    net
-        Petri net
-    rec_depth
-        Current recursion depth
-    """
-    reach_trans = {}
-    if rec_depth > MAX_REC_DEPTH:
-        return reach_trans
-    # if rec_depth > DebugConst.REACH_MRD:
-    #    DebugConst.REACH_MRD = rec_depth
-    for a1 in t.out_arcs:
-        place = a1.target
-        for a2 in place.out_arcs:
-            t2 = a2.target
-            if t2.label is not None:
-                reach_trans[t2.label] = rec_depth
-            if t2.label is None:
-                merge_dicts(reach_trans, get_hidden_trans_reached_trans(t2, net, rec_depth + 1))
-    return reach_trans
 
 
 def get_places_with_missing_tokens(t, marking):
@@ -333,47 +308,6 @@ def apply_hidden_trans(t, net, marking, places_shortest_paths_by_hidden, act_tr,
     return [net, marking, act_tr, vis_mark]
 
 
-def get_visible_transitions_eventually_enabled_by_marking(net, marking):
-    """
-    Get visible transitions eventually enabled by marking (passing possibly through hidden transitions)
-
-    Parameters
-    ----------
-    net
-        Petri net
-    marking
-        Current marking
-    """
-    all_enabled_transitions = list(semantics.enabled_transitions(net, marking))
-    initial_all_enabled_transitions_marking_dictio = {}
-    all_enabled_transitions_marking_dictio = {}
-    for trans in all_enabled_transitions:
-        all_enabled_transitions_marking_dictio[trans] = marking
-        initial_all_enabled_transitions_marking_dictio[trans] = marking
-    visible_transitions = set()
-    visited_transitions = set()
-
-    i = 0
-    while i < len(all_enabled_transitions):
-        t = all_enabled_transitions[i]
-        marking_copy = copy(all_enabled_transitions_marking_dictio[t])
-
-        if repr([t, marking_copy]) not in visited_transitions:
-            if t.label is not None:
-                visible_transitions.add(t)
-            else:
-                if semantics.is_enabled(t, net, marking_copy):
-                    new_marking = semantics.execute(t, net, marking_copy)
-                    new_enabled_transitions = list(semantics.enabled_transitions(net, new_marking))
-                    for t2 in new_enabled_transitions:
-                        all_enabled_transitions.append(t2)
-                        all_enabled_transitions_marking_dictio[t2] = new_marking
-            visited_transitions.add(repr([t, marking_copy]))
-        i = i + 1
-
-    return visible_transitions
-
-
 def break_condition_final_marking(marking, final_marking):
     """
     Verify break condition for final marking
@@ -417,7 +351,7 @@ def apply_trace(trace, net, initial_marking, final_marking, trans_map, enable_pl
     trans_map
         Map between transitions labels and transitions
     enable_pltr_fitness
-        Enable fitness calculation at place/transition level
+        Enable fitness retrieval at place/transition level
     place_fitness
         Current dictionary of places associated with unfit traces
     transition_fitness
@@ -507,13 +441,27 @@ def apply_trace(trace, net, initial_marking, final_marking, trans_map, enable_pl
                                                                               marking):
                         visited_transitions = set()
                         prev_len_activated_transitions = len(act_trans)
-                        [net, marking, act_trans, vis_mark] = apply_hidden_trans(t, net,
-                                                                                 marking,
-                                                                                 places_shortest_path_by_hidden,
-                                                                                 act_trans,
-                                                                                 0,
-                                                                                 visited_transitions,
-                                                                                 vis_mark)
+                        [net, new_marking, new_act_trans, new_vis_mark] = apply_hidden_trans(t, net,
+                                                                                             copy(marking),
+                                                                                             places_shortest_path_by_hidden,
+                                                                                             copy(act_trans),
+                                                                                             0,
+                                                                                             copy(visited_transitions),
+                                                                                             copy(vis_mark))
+                        for jj5 in range(len(act_trans), len(new_act_trans)):
+                            tt5 = new_act_trans[jj5]
+                            c, cmap = get_consumed_tokens(tt5)
+                            p, pmap = get_produced_tokens(tt5)
+                            if enable_pltr_fitness:
+                                for pl2 in cmap:
+                                    if pl2 in place_fitness:
+                                        place_fitness[pl2]["c"] += cmap[pl2]
+                                for pl2 in pmap:
+                                    if pl2 in place_fitness:
+                                        place_fitness[pl2]["p"] += pmap[pl2]
+                            consumed = consumed + c
+                            produced = produced + p
+                        marking, act_trans, vis_mark = new_marking, new_act_trans, new_vis_mark
                     is_initially_enabled = True
                     old_marking_names = [x.name for x in list(marking.keys())]
                     if not semantics.is_enabled(t, net, marking):
@@ -528,6 +476,7 @@ def apply_trace(trace, net, initial_marking, final_marking, trans_map, enable_pl
                             for place in tokens_added.keys():
                                 if place in place_fitness:
                                     place_fitness[place]["underfed_traces"].add(trace)
+                                place_fitness[place]["m"] += tokens_added[place]
                             if trace not in transition_fitness[t]["underfed_traces"]:
                                 transition_fitness[t]["underfed_traces"][trace] = list()
                             transition_fitness[t]["underfed_traces"][trace].append(current_event_map)
@@ -535,10 +484,17 @@ def apply_trace(trace, net, initial_marking, final_marking, trans_map, enable_pl
                         if trace not in transition_fitness[t]["fit_traces"]:
                             transition_fitness[t]["fit_traces"][trace] = list()
                         transition_fitness[t]["fit_traces"][trace].append(current_event_map)
-                    c = get_consumed_tokens(t)
-                    p = get_produced_tokens(t)
+                    c, cmap = get_consumed_tokens(t)
+                    p, pmap = get_produced_tokens(t)
                     consumed = consumed + c
                     produced = produced + p
+                    if enable_pltr_fitness:
+                        for pl2 in cmap:
+                            if pl2 in place_fitness:
+                                place_fitness[pl2]["c"] += cmap[pl2]
+                        for pl2 in pmap:
+                            if pl2 in place_fitness:
+                                place_fitness[pl2]["p"] += pmap[pl2]
                     if semantics.is_enabled(t, net, marking):
                         marking = semantics.execute(t, net, marking)
                         act_trans.append(t)
@@ -589,6 +545,17 @@ def apply_trace(trace, net, initial_marking, final_marking, trans_map, enable_pl
                             marking = semantics.execute(t, net, marking)
                             act_trans.append(t)
                             vis_mark.append(marking)
+                            c, cmap = get_consumed_tokens(t)
+                            p, pmap = get_produced_tokens(t)
+                            if enable_pltr_fitness:
+                                for pl2 in cmap:
+                                    if pl2 in place_fitness:
+                                        place_fitness[pl2]["c"] += cmap[pl2]
+                                for pl2 in pmap:
+                                    if pl2 in place_fitness:
+                                        place_fitness[pl2]["p"] += pmap[pl2]
+                            consumed = consumed + c
+                            produced = produced + p
                     if break_condition_final_marking(marking, final_marking):
                         break
             else:
@@ -615,6 +582,17 @@ def apply_trace(trace, net, initial_marking, final_marking, trans_map, enable_pl
                             if semantics.is_enabled(t, net, marking):
                                 marking = semantics.execute(t, net, marking)
                                 act_trans.append(t)
+                                c, cmap = get_consumed_tokens(t)
+                                p, pmap = get_produced_tokens(t)
+                                if enable_pltr_fitness:
+                                    for pl2 in cmap:
+                                        if pl2 in place_fitness:
+                                            place_fitness[pl2]["c"] += cmap[pl2]
+                                    for pl2 in pmap:
+                                        if pl2 in place_fitness:
+                                            place_fitness[pl2]["p"] += pmap[pl2]
+                                consumed = consumed + c
+                                produced = produced + p
                                 vis_mark.append(marking)
                                 continue
                             else:
@@ -637,6 +615,7 @@ def apply_trace(trace, net, initial_marking, final_marking, trans_map, enable_pl
                     if p in place_fitness:
                         if trace not in place_fitness[p]["underfed_traces"]:
                             place_fitness[p]["overfed_traces"].add(trace)
+                place_fitness[place]["r"] += marking[p]
         remaining = remaining + marking[p]
 
     for p in current_remaining_map:
@@ -644,12 +623,21 @@ def apply_trace(trace, net, initial_marking, final_marking, trans_map, enable_pl
             if p in place_fitness:
                 if trace not in place_fitness[p]["underfed_traces"] and trace not in place_fitness[p]["overfed_traces"]:
                     place_fitness[p]["overfed_traces"].add(trace)
+            place_fitness[place]["r"] += current_remaining_map[p]
         remaining = remaining + current_remaining_map[p]
 
     if consider_remaining_in_fitness:
         is_fit = (missing == 0) and (remaining == 0)
     else:
         is_fit = (missing == 0)
+
+    if enable_pltr_fitness:
+        for pl in initial_marking:
+            place_fitness[pl]["p"] += 1
+            produced += 1
+        for pl in final_marking:
+            place_fitness[pl]["c"] += 1
+            consumed += 1
 
     if consumed > 0 and produced > 0:
         # trace_fitness = (1.0 - float(missing) / float(consumed)) * (1.0 - float(remaining) / float(produced))
@@ -689,11 +677,12 @@ def apply_trace(trace, net, initial_marking, final_marking, trans_map, enable_pl
                             "previousActivity": previous_activity}
 
     return [is_fit, trace_fitness, act_trans, transitions_with_problems, marking_before_cleaning,
-            get_visible_transitions_eventually_enabled_by_marking(net, marking_before_cleaning), missing, consumed,
+            align_utils.get_visible_transitions_eventually_enabled_by_marking(net, marking_before_cleaning), missing,
+            consumed,
             remaining, produced]
 
 
-class ApplyTraceTokenReplay(Thread):
+class ApplyTraceTokenReplay:
     def __init__(self, trace, net, initial_marking, final_marking, trans_map, enable_pltr_fitness, place_fitness,
                  transition_fitness, notexisting_activities_in_model,
                  places_shortest_path_by_hidden, consider_remaining_in_fitness, activity_key="concept:name",
@@ -713,7 +702,7 @@ class ApplyTraceTokenReplay(Thread):
         trans_map
             Map between transitions labels and transitions
         enable_pltr_fitness
-            Enable fitness calculation at place/transition level
+            Enable fitness retrieval at place/transition level
         place_fitness
             Current dictionary of places associated with unfit traces
         transition_fitness
@@ -784,7 +773,7 @@ class ApplyTraceTokenReplay(Thread):
         self.produced = None
         self.s_components = s_components
 
-        Thread.__init__(self)
+        # Thread.__init__(self)
 
     def run(self):
         """
@@ -830,33 +819,9 @@ class MarkingToActivityCaching:
         self.cache = {}
 
 
+"""
 def check_threads(net, threads, threads_results, all_activated_transitions, is_reduction=False,
                   return_object_names=False):
-    """
-    Check threads aliveness and terminate them accordingly
-
-    Parameters
-    ------------
-    net
-        Petri net
-    threads
-        Current opened threads
-    threads_results
-        Threads execution result (to be returned)
-    all_activated_transitions
-        List of activated transitions during the replay (to be returned)
-    is_reduction
-        Is this a reduction replay (boolean)
-
-    Returns
-    ------------
-    threads
-        Current opened threads
-    threads_results
-        Threads execution result
-    all_activated_transitions
-        List of activated transitions during the replay
-    """
     threads_keys = list(threads.keys())
     terminated_threads_keys = [tk for tk in threads_keys if threads[tk].thread_is_alive is False]
     for tk in terminated_threads_keys:
@@ -892,6 +857,7 @@ def check_threads(net, threads, threads_results, all_activated_transitions, is_r
         if is_reduction and len(all_activated_transitions) == len(net.transitions):
             break
     return threads, threads_results, all_activated_transitions
+"""
 
 
 def get_variant_from_trace(trace, activity_key, disable_variants=False):
@@ -964,7 +930,7 @@ def apply_log(log, net, initial_marking, final_marking, enable_pltr_fitness=Fals
     final_marking
         Final marking
     enable_pltr_fitness
-        Enable fitness calculation at place level
+        Enable fitness retrieval at place level
     consider_remaining_in_fitness
         Boolean value telling if the remaining tokens should be considered in fitness evaluation
     activity_key
@@ -993,7 +959,7 @@ def apply_log(log, net, initial_marking, final_marking, enable_pltr_fitness=Fals
     post_fix_cache = PostFixCaching()
     marking_to_activity_cache = MarkingToActivityCaching()
     if places_shortest_path_by_hidden is None:
-        places_shortest_path_by_hidden = get_places_shortest_path_by_hidden(net)
+        places_shortest_path_by_hidden = get_places_shortest_path_by_hidden(net, MAX_REC_DEPTH)
 
     place_fitness_per_trace = {}
     transition_fitness_per_trace = {}
@@ -1002,7 +968,8 @@ def apply_log(log, net, initial_marking, final_marking, enable_pltr_fitness=Fals
 
     if enable_pltr_fitness:
         for place in net.places:
-            place_fitness_per_trace[place] = {"underfed_traces": set(), "overfed_traces": set()}
+            place_fitness_per_trace[place] = {"underfed_traces": set(), "overfed_traces": set(), "m": 0, "r": 0, "c": 0,
+                                              "p": 0}
         for transition in net.transitions:
             if transition.label:
                 transition_fitness_per_trace[transition] = {"underfed_traces": {}, "fit_traces": {}}
@@ -1029,22 +996,6 @@ def apply_log(log, net, initial_marking, final_marking, enable_pltr_fitness=Fals
 
                 for i in range(len(vc)):
                     variant = vc[i][0]
-                    threads_keys = list(threads.keys())
-                    while len(threads_keys) > MAX_NO_THREADS:
-                        threads, threads_results, all_activated_transitions = check_threads(net, threads,
-                                                                                            threads_results,
-                                                                                            all_activated_transitions,
-                                                                                            is_reduction=is_reduction,
-                                                                                            return_object_names=return_object_names)
-                        if is_reduction and len(all_activated_transitions) == len(net.transitions):
-                            break
-                        threads_keys = list(threads.keys())
-                    threads, threads_results, all_activated_transitions = check_threads(net, threads, threads_results,
-                                                                                        all_activated_transitions,
-                                                                                        is_reduction=is_reduction,
-                                                                                        return_object_names=return_object_names)
-                    if is_reduction and len(all_activated_transitions) == len(net.transitions):
-                        break
                     threads[variant] = ApplyTraceTokenReplay(variants[variant][0], net, initial_marking, final_marking,
                                                              trans_map, enable_pltr_fitness, place_fitness_per_trace,
                                                              transition_fitness_per_trace,
@@ -1061,20 +1012,37 @@ def apply_log(log, net, initial_marking, final_marking, enable_pltr_fitness=Fals
                                                              thread_maximum_ex_time=thread_maximum_ex_time,
                                                              cleaning_token_flood=cleaning_token_flood,
                                                              s_components=s_components)
-                    threads[variant].start()
-                while len(threads) > 0:
-                    threads_keys = list(threads.keys())
-                    t = threads[threads_keys[0]]
-                    t.join()
-                    threads, threads_results, all_activated_transitions = check_threads(net, threads, threads_results,
-                                                                                        all_activated_transitions,
-                                                                                        is_reduction=is_reduction,
-                                                                                        return_object_names=return_object_names)
-                    if is_reduction and len(all_activated_transitions) == len(net.transitions):
-                        break
+                    threads[variant].run()
+                    t = threads[variant]
+                    threads_results[variant] = {"trace_is_fit": copy(t.t_fit),
+                                                "trace_fitness": float(copy(t.t_value)),
+                                                "activated_transitions": copy(t.act_trans),
+                                                "reached_marking": copy(t.reached_marking),
+                                                "enabled_transitions_in_marking": copy(
+                                                    t.enabled_trans_in_mark),
+                                                "transitions_with_problems": copy(
+                                                    t.trans_probl),
+                                                "missing_tokens": int(t.missing),
+                                                "consumed_tokens": int(t.consumed),
+                                                "remaining_tokens": int(t.remaining),
+                                                "produced_tokens": int(t.produced)}
 
+                    if return_object_names:
+                        threads_results[variant]["activated_transitions_labels"] = [x.label for x in
+                                                                        threads_results[variant]["activated_transitions"]]
+                        threads_results[variant]["activated_transitions"] = [x.name for x in threads_results[variant]["activated_transitions"]]
+                        threads_results[variant]["enabled_transitions_in_marking_labels"] = [x.label for x in threads_results[variant][
+                            "enabled_transitions_in_marking"]]
+                        threads_results[variant]["enabled_transitions_in_marking"] = [x.name for x in threads_results[variant][
+                            "enabled_transitions_in_marking"]]
+                        threads_results[variant]["transitions_with_problems"] = [x.name for x in
+                                                                                 threads_results[variant][
+                                                                                     "transitions_with_problems"]]
+                        threads_results[variant]["reached_marking"] = {x.name: y for x, y in
+                                                                       threads_results[variant][
+                                                                           "reached_marking"].items()}
+                    del threads[variant]
                 for trace in log:
-                    # trace_variant = ",".join([x[activity_key] for x in trace])
                     trace_variant = get_variant_from_trace(trace, activity_key, disable_variants=disable_variants)
                     if trace_variant in threads_results:
                         t = threads_results[trace_variant]

@@ -1,8 +1,8 @@
 import pandas as pd
 
 from pm4py.objects.log import log as log_instance
-#from pm4py.objects.conversion.log import factory as log_conv_fact
 from pm4py.objects.conversion.log.versions import to_event_stream
+
 
 def apply(log, parameters=None):
     """
@@ -40,6 +40,8 @@ def get_dataframe_from_event_stream(log):
     df
         Pandas dataframe
     """
+    if isinstance(log, pd.core.frame.DataFrame):
+        return log
     if type(log) is log_instance.EventLog:
         log = to_event_stream.transform_event_log_to_event_stream(log)
     transf_log = [dict(x) for x in log]
