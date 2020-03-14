@@ -76,6 +76,7 @@ def binary_loop_detection(net):
                 return net
     return None
 
+
 def check_pre_sets_equal(elems):
     for x in elems:
         for y in pn_util.pre_set(x):
@@ -84,6 +85,7 @@ def check_pre_sets_equal(elems):
                     return False
     return True
 
+
 def check_post_sets_equal(elems):
     for x in elems:
         for y in pn_util.post_set(x):
@@ -91,6 +93,7 @@ def check_post_sets_equal(elems):
                 if y not in pn_util.post_set(xx):
                     return False
     return True
+
 
 def binary_parallel_detection(net):
     trans_set_1 = copy.copy(net.transitions)
@@ -186,8 +189,8 @@ def transform_pn_to_pt(net):
     stop = False
     while not stop:
         stop = True
-        #pn_viz.view(pn_viz.apply(net, parameters={"format": "svg"}))
-        #time.sleep(1)
+        # pn_viz.view(pn_viz.apply(net, parameters={"format": "svg"}))
+        # time.sleep(1)
         stop = binary_choice_detection(net) is None
         if not stop:
             continue
@@ -209,10 +212,15 @@ def transform_pn_to_pt(net):
 
 if __name__ == "__main__":
     i = 1
+    f = open('C:/Users/zelst/Documents/papers/2020_van_zelst_pn_pt_algo/experiments/tria_10_20_30_non_bordered.csv', 'w+')
+    f.write('run, places, transitions, time_ms, rediscovered\n')
     while True:
-        pt = pt_util.fold(pt_gen.apply())
-        net, i_m, f_m = pt_conv.apply(pt, variant=pt_conv.TO_PETRI_NET_TRANSITION_BORDERED)
-        #if not pn_sound.check_petri_wfnet_and_soundness(net):
+        pt = pt_util.fold(pt_util.reduce_tau_leafs(pt_gen.apply()))
+        net, i_m, f_m = pt_conv.apply(pt, variant=pt_conv.TO_PETRI_NET)
+        pn_viz.view(pn_viz.apply(net,initial_marking=i_m,final_marking=f_m,parameters={"format": "svg"}))
+        plcs = len(net.places)
+        trs = len(net.transitions)
+        # if not pn_sound.check_petri_wfnet_and_soundness(net):
         #    pt_viz.view(pt_viz.apply(pt, parameters={"format": "svg"}))
         #    time.sleep(1)
         #    pn_viz.view(pn_viz.apply(net, parameters={"format": "svg"}))
@@ -220,18 +228,28 @@ if __name__ == "__main__":
         #    pn_export.factory.apply(net, i_m, 'C:/Users/zelst/Desktop/non_sound.pnml', final_marking=f_m)
         #    break
 
-        #net = pn_util.reduce_silent_transitions(net)
-        ptx = pt_util.fold(pt_util.reduce_tau_leafs(transform_pn_to_pt(net)))
-        if pt == ptx:
+        # net = pn_util.reduce_silent_transitions(net)
+        start = datetime.datetime.now()
+        ptx = transform_pn_to_pt(net)
+        pt_viz.view(pt_viz.apply(ptx, parameters={"format": "svg"}))
+        end = datetime.datetime.now()
+        ptx = pt_util.fold(pt_util.reduce_tau_leafs(ptx))
+        elapsed = end - start
+        if elapsed.seconds > 0:
+            print('more than one sec!')
+        if pt_util.structurally_language_equal(pt, ptx):
+            f.write(str(i) + ', ' + str(plcs) + ', ' + str(trs) + ', ' + str(
+                elapsed.microseconds) + ', ' + 'T' + '\n')
             print(i)
-            i += 1
         else:
+            f.write(str(i) + ', ' + str(plcs) + ', ' + str(trs) + ', ' + str(
+                elapsed.microseconds) + ', ' + 'F' + '\n')
             print('error')
             pt_viz.view(pt_viz.apply(pt, parameters={"format": "svg"}))
             time.sleep(1)
             pt_viz.view(pt_viz.apply(ptx, parameters={"format": "svg"}))
-            print(i)
             break
+        i += 1
 
     '''
     pnml_path = os.path.join('..', "tests", "input_data", "running-example-book-simple.pnml")
