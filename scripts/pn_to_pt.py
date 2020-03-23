@@ -212,40 +212,32 @@ def transform_pn_to_pt(net):
 
 if __name__ == "__main__":
     i = 1
-    f = open('C:/Users/zelst/Documents/papers/2020_van_zelst_pn_pt_algo/experiments/tria_10_20_30_non_bordered.csv', 'w+')
+    f = open('C:/Users/zelst/Documents/papers/2020_van_zelst_pn_pt_algo/experiments/tria_40_50_60_bordered_2.csv',
+             'w+')
     f.write('run, places, transitions, time_ms, rediscovered\n')
-    while True:
-        pt = pt_util.fold(pt_util.reduce_tau_leafs(pt_gen.apply()))
-        net, i_m, f_m = pt_conv.apply(pt, variant=pt_conv.TO_PETRI_NET)
-        pn_viz.view(pn_viz.apply(net,initial_marking=i_m,final_marking=f_m,parameters={"format": "svg"}))
+    while i <= 50000:
+        pt = pt_util.fold(pt_gen.apply(parameters={'min': 40, 'mode': 50, 'max': 60}))
+        net, i_m, f_m = pt_conv.apply(pt, variant=pt_conv.TO_PETRI_NET_TRANSITION_BORDERED)
         plcs = len(net.places)
         trs = len(net.transitions)
-        # if not pn_sound.check_petri_wfnet_and_soundness(net):
-        #    pt_viz.view(pt_viz.apply(pt, parameters={"format": "svg"}))
-        #    time.sleep(1)
-        #    pn_viz.view(pn_viz.apply(net, parameters={"format": "svg"}))
-        #    time.sleep(1)
-        #    pn_export.factory.apply(net, i_m, 'C:/Users/zelst/Desktop/non_sound.pnml', final_marking=f_m)
-        #    break
-
-        # net = pn_util.reduce_silent_transitions(net)
         start = datetime.datetime.now()
         ptx = transform_pn_to_pt(net)
-        pt_viz.view(pt_viz.apply(ptx, parameters={"format": "svg"}))
         end = datetime.datetime.now()
-        ptx = pt_util.fold(pt_util.reduce_tau_leafs(ptx))
+        ptx = pt_util.fold(ptx)
         elapsed = end - start
         if elapsed.seconds > 0:
-            print('more than one sec!')
+            print(str(i)+': more than one sec!')
         if pt_util.structurally_language_equal(pt, ptx):
+            el = elapsed.seconds * 1000000 + elapsed.microseconds
             f.write(str(i) + ', ' + str(plcs) + ', ' + str(trs) + ', ' + str(
-                elapsed.microseconds) + ', ' + 'T' + '\n')
-            print(i)
+                el) + ', ' + 'T' + '\n')
+            # print(i)
         else:
-            f.write(str(i) + ', ' + str(plcs) + ', ' + str(trs) + ', ' + str(
-                elapsed.microseconds) + ', ' + 'F' + '\n')
+            #f.write(str(i) + ', ' + str(plcs) + ', ' + str(trs) + ', ' + str(
+            #    elapsed.microseconds) + ', ' + 'F' + '\n')
             print('error')
             pt_viz.view(pt_viz.apply(pt, parameters={"format": "svg"}))
+            pt_util.fold(pt)
             time.sleep(1)
             pt_viz.view(pt_viz.apply(ptx, parameters={"format": "svg"}))
             break
